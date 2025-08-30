@@ -62,15 +62,15 @@
       "EXPO_PUBLIC_LOCATIONIQ_API_KEY": "pk.2e5d70a914f544ff9b993af9ac29d478",
       "router": {},
       "eas": {
-        "projectId": "d19713a1-e98d-41ec-bd51-69216471ee64"
+        "projectId": "e02ed124-8f93-40db-8712-66a003b275ff"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/d19713a1-e98d-41ec-bd51-69216471ee64"
+      "url": "https://u.expo.dev/e02ed124-8f93-40db-8712-66a003b275ff"
     },
-    "owner": "abhinav8149"
+    "owner": "piyush8009"
   }
 }

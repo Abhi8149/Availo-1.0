@@ -24,6 +24,8 @@ export const createShop = mutation({
       openTime: v.string(), // Format: "09:00"
       closeTime: v.string(), // Format: "18:00"
     })),
+    hasDelivery: v.optional(v.boolean()),
+    deliveryRange: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const shopId = await ctx.db.insert("shops", {
@@ -37,6 +39,8 @@ export const createShop = mutation({
       shopImageIds: args.shopImageIds,
       estimatedTime: args.estimatedTime,
       businessHours: args.businessHours,
+      hasDelivery: args.hasDelivery,
+      deliveryRange: args.deliveryRange,
       lastUpdated: Date.now(),
       createdAt: Date.now(),
     });

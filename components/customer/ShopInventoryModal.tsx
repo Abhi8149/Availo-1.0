@@ -21,28 +21,9 @@ import ItemImage from "../common/ItemImage";
 import ShopImage from "../common/ShopImage";
 import { DirectionsService } from "../../services/directionsService";
 import ItemDetailsModal from "./ItemDetailsModal";
+import ShopCartModal from "./ShopCartModal";
 
-interface Shop {
-  _id: Id<"shops">;
-  name: string;
-  category: string;
-  location: {
-    lat: number;
-    lng: number;
-    address?: string;
-  };
-  isOpen: boolean;
-  lastUpdated: number;
-  mobileNumber?: string;
-  shopImageId?: Id<"_storage">;
-  shopImageIds?: Id<"_storage">[];
-  estimatedTime?: {
-    hours: number;
-    minutes: number;
-    action: "opening" | "closing";
-  };
-  distance?: number | null;
-}
+import { Shop, CartItem } from "../../types/interfaces";
 
 interface ShopInventoryModalProps {
   visible: boolean;
@@ -53,6 +34,10 @@ interface ShopInventoryModalProps {
   onAddToFavourites?: (shop: Shop) => void;
   onRemoveFromFavourites?: (shopId: Id<"shops">) => void;
   isFavourite?: boolean;
+  cartItems?: CartItem[];
+  onAddToCart?: (item: any) => void;
+  onRemoveFromCart?: (itemId: Id<"items">) => void;
+  onBookItems?: (items: CartItem[]) => void;
 }
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -65,7 +50,11 @@ export default function ShopInventoryModal({
   wishlistItems = [],
   onAddToFavourites,
   onRemoveFromFavourites,
-  isFavourite = false
+  isFavourite = false,
+  cartItems = [],
+  onAddToCart,
+  onRemoveFromCart,
+  onBookItems
 }: ShopInventoryModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -88,6 +77,7 @@ export default function ShopInventoryModal({
     }
   };
   const [itemDetailsVisible, setItemDetailsVisible] = useState(false);
+  const [showCart, setShowCart] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const fadeAnim = React.useRef(new Animated.Value(1)).current;
 
@@ -419,6 +409,23 @@ export default function ShopInventoryModal({
               <Text style={styles.title}>{shop.name}</Text>
               <Text style={styles.subtitle}>Shop Details & Items</Text>
             </View>
+            {/* Cart Button */}
+            <TouchableOpacity
+              onPress={() => setShowCart(true)}
+              style={styles.cartButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="cart-outline" size={24} color="#2563EB" />
+              {cartItems.filter(item => item.shopId === shop._id).length > 0 && (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>
+                    {cartItems.filter(item => item.shopId === shop._id).length}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Favourite Button */}
             <TouchableOpacity
               onPress={handleToggleFavourite}
               style={styles.favouriteButtonHeader}
@@ -539,6 +546,28 @@ export default function ShopInventoryModal({
                     </Text>
                   </View>
                 </View>
+
+                {/* Delivery Information */}
+                {shop.hasDelivery && (
+                  <View style={styles.infoRow}>
+                    <View style={styles.infoIcon}>
+                      <Ionicons name="bicycle" size={20} color="#2563EB" />
+                    </View>
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Delivery Service</Text>
+                      <Text style={styles.infoValue}>
+                        Available up to {shop.deliveryRange}km
+                        {shop.distance !== undefined && shop.distance !== null && (
+                          <Text style={styles.deliveryStatus}>
+                            {shop.distance <= (shop.deliveryRange ?? 0)
+                              ? ' (Available at your location)'
+                              : ` (${Math.ceil(shop.distance - (shop.deliveryRange ?? 0))}km outside delivery zone)`}
+                          </Text>
+                        )}
+                      </Text>
+                    </View>
+                  </View>
+                )}
 
                 {/* Emergency Status */}
                 {timeInfo && (
@@ -722,6 +751,19 @@ export default function ShopInventoryModal({
         item={selectedItem}
         onAddToWishlist={onAddToWishlist}
         isInWishlist={selectedItem ? wishlistItems.some(wishlistItem => wishlistItem._id === selectedItem._id) : false}
+        onAddToCart={onAddToCart}
+        isInCart={selectedItem ? cartItems.some(cartItem => cartItem._id === selectedItem._id) : false}
+      />
+
+      {/* Cart Modal */}
+      <ShopCartModal
+        visible={showCart}
+        onClose={() => setShowCart(false)}
+        cartItems={cartItems}
+        shopId={shop._id}
+        shopName={shop.name}
+        onBookNow={onBookItems || (() => {})}
+        onRemoveFromCart={onRemoveFromCart || (() => {})}
       />
     </>
   );
@@ -755,6 +797,27 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 8,
     backgroundColor: "#F9FAFB",
+  },
+  cartButton: {
+    padding: 8,
+    position: 'relative',
+    marginRight: 8,
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   subtitle: {
     fontSize: 14,
@@ -1395,4 +1458,36 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     textAlign: "center",
-  },});
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 8,
+    gap: 12,
+  },
+  infoIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 15,
+    color: "#1F2937",
+    fontWeight: "500",
+  },
+  deliveryStatus: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+});

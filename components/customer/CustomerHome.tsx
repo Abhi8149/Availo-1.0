@@ -27,13 +27,7 @@ import ShopMapModal from "./ShopMapModal";
 import ShopInventoryModal from "./ShopInventoryModal";
 import CustomerSidebar from "./CustomerSidebar";
 import NotificationsModal from "./NotificationsModal";
-
-interface User {
-  _id: Id<"users">;
-  name: string;
-  email: string;
-  role: "shopkeeper" | "customer";
-}
+import { User, CartItem } from "../../types/interfaces";
 
 interface CustomerHomeProps {
   user: User;
@@ -71,9 +65,67 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   const [showLocationPopup, setShowLocationPopup] = useState(false);
   const [wishlistItems, setWishlistItems] = useState<any[]>([]);
   const [favouriteShops, setFavouriteShops] = useState<any[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   
   // Animation for popup
   const popupAnim = useRef(new Animated.Value(0)).current;
+
+  // Load cart from AsyncStorage on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const storedCart = await AsyncStorage.getItem('customer_cart');
+        if (storedCart) {
+          setCartItems(JSON.parse(storedCart));
+        }
+      } catch {}
+    })();
+  }, []);
+
+  // Save cart to AsyncStorage whenever it changes
+  useEffect(() => {
+    (async () => {
+      try {
+        await AsyncStorage.setItem('customer_cart', JSON.stringify(cartItems));
+      } catch {}
+    })();
+  }, [cartItems]);
+
+  const handleAddToCart = useCallback((item: Omit<CartItem, 'quantity'>) => {
+    setCartItems(prev => {
+      const exists = prev.some(cartItem => cartItem._id === item._id);
+      if (exists) return prev;
+      return [...prev, { ...item, quantity: 1 }];
+    });
+    Alert.alert('Success', `${item.name} has been added to your cart`);
+  }, []);
+
+  const handleRemoveFromCart = useCallback((itemId: Id<"items">) => {
+    setCartItems(prev => prev.filter(item => item._id !== itemId));
+  }, []);
+
+  const handleBookItems = useCallback((items: CartItem[]) => {
+    Alert.alert(
+      'Confirm Booking',
+      `Do you want to book ${items.length} item(s)?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Book Now',
+          onPress: () => {
+            // TODO: Implement booking logic
+            Alert.alert('Success', 'Your items have been booked!');
+            // Remove booked items from cart
+            const itemIds = items.map(item => item._id);
+            setCartItems(prev => prev.filter(item => !itemIds.includes(item._id)));
+          }
+        }
+      ]
+    );
+  }, []);
 
   // Load wishlist from AsyncStorage on mount
   useEffect(() => {
@@ -1076,6 +1128,10 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
           onAddToFavourites={handleAddToFavourites}
           onRemoveFromFavourites={handleRemoveFromFavourites}
           isFavourite={isShopFavourite(selectedShopForInventory._id)}
+          cartItems={cartItems}
+          onAddToCart={handleAddToCart}
+          onRemoveFromCart={handleRemoveFromCart}
+          onBookItems={handleBookItems}
         />
       )}
 

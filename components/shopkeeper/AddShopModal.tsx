@@ -56,6 +56,8 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
   const [closingPeriod, setClosingPeriod] = useState("PM");
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasDelivery, setHasDelivery] = useState(false);
+  const [deliveryRange, setDeliveryRange] = useState("");
 
   const createShop = useMutation(api.shops.createShop);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
@@ -311,6 +313,12 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
         closeTime: formatTimeFor24Hour(closingHours, closingMinutes, closingPeriod),
       } : undefined;
 
+      // Validate delivery range if delivery is enabled
+      if (hasDelivery && (!deliveryRange || isNaN(parseFloat(deliveryRange)) || parseFloat(deliveryRange) <= 0)) {
+        Alert.alert("Error", "Please enter a valid delivery range");
+        return;
+      }
+
       await createShop({
         ownerUid,
         name: shopName.trim(),
@@ -326,6 +334,8 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
         shopImageIds: shopImageIds.length > 0 ? shopImageIds : undefined,
         estimatedTime,
         businessHours,
+        hasDelivery,
+        deliveryRange: hasDelivery ? parseFloat(deliveryRange) : undefined,
       });
 
       // Reset form
@@ -344,6 +354,8 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
       setClosingMinutes("");
       setClosingPeriod("PM");
       setImageUris([]);
+      setHasDelivery(false);
+      setDeliveryRange("");
       
       onClose();
       Alert.alert("Success", "Shop added successfully!");
@@ -854,6 +866,69 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
               <Text style={styles.timeHint}>
                 Set your regular business hours (12-hour format)
               </Text>
+            </View>
+
+            {/* Delivery Section */}
+            <View style={styles.businessHoursSection}>
+              <Text style={styles.businessHoursLabel}>Delivery Service</Text>
+              <View style={styles.statusButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.statusButton,
+                    hasDelivery && styles.statusButtonOpen,
+                  ]}
+                  onPress={() => setHasDelivery(true)}
+                >
+                  <Ionicons
+                    name="bicycle"
+                    size={20}
+                    color={hasDelivery ? "#FFFFFF" : "#6B7280"}
+                  />
+                  <Text
+                    style={[
+                      styles.statusButtonText,
+                      hasDelivery && styles.statusButtonTextSelected,
+                    ]}
+                  >
+                    Yes
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.statusButton,
+                    !hasDelivery && styles.statusButtonClosed,
+                  ]}
+                  onPress={() => setHasDelivery(false)}
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={!hasDelivery ? "#FFFFFF" : "#6B7280"}
+                  />
+                  <Text
+                    style={[
+                      styles.statusButtonText,
+                      !hasDelivery && styles.statusButtonTextSelected,
+                    ]}
+                  >
+                    No
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {hasDelivery && (
+                <View style={{ marginTop: 12 }}>
+                  <Text style={styles.label}>Delivery Range (km)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={deliveryRange}
+                    onChangeText={setDeliveryRange}
+                    placeholder="Enter delivery range in kilometers"
+                    keyboardType="numeric"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+              )}
             </View>
           </View>
         </ScrollView>
