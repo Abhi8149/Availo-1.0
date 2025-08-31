@@ -562,35 +562,39 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   // Animation for hiding/showing filters on scroll
   // ...other state variables...j
 
-  // Scroll handler for FlatList
-  const handleScroll = (event: { nativeEvent: { contentOffset: { y: number } } }) => {
+  // Scroll handler for FlatList with throttling
+  const handleScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
     const offsetY = event.nativeEvent.contentOffset.y;
     if (offsetY > 20) {
-          Animated.timing(filtersAnim, {
-            toValue: 0,
-        duration: 120,
-            useNativeDriver: false,
-          }).start();
-          Animated.timing(searchAnim, {
-            toValue: 0,
-        duration: 120,
-            useNativeDriver: false,
-          }).start();
-          setFiltersVisible(false);
-        } else {
-          Animated.timing(filtersAnim, {
-            toValue: 1,
-        duration: 120,
-            useNativeDriver: false,
-          }).start();
-          Animated.timing(searchAnim, {
-            toValue: 1,
-        duration: 120,
-            useNativeDriver: false,
-          }).start();
-          setFiltersVisible(true);
-        }
-  };
+      if (filtersVisible) {
+        Animated.timing(filtersAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false,
+        }).start();
+        Animated.timing(searchAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false,
+        }).start();
+        setFiltersVisible(false);
+      }
+    } else {
+      if (!filtersVisible) {
+        Animated.timing(filtersAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: false,
+        }).start();
+        Animated.timing(searchAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: false,
+        }).start();
+        setFiltersVisible(true);
+      }
+    }
+  }, [filtersVisible]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -942,11 +946,20 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
               contentContainerStyle={styles.itemsList}
               showsVerticalScrollIndicator={false}
               removeClippedSubviews={true}
-              maxToRenderPerBatch={8}
-              windowSize={8}
-              initialNumToRender={6}
+              maxToRenderPerBatch={6}
+              windowSize={5}
+              initialNumToRender={4}
               onScroll={handleScroll}
-              scrollEventThrottle={16}
+              scrollEventThrottle={32}
+              disableIntervalMomentum={false}
+              decelerationRate="normal"
+              bounces={true}
+              alwaysBounceVertical={false}
+              getItemLayout={(data, index) => ({
+                length: 120, // Approximate height of ShopCard
+                offset: 120 * index,
+                index,
+              })}
             />
           ) : (
             <FlatList
@@ -1014,11 +1027,20 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
               contentContainerStyle={styles.shopsList}
               showsVerticalScrollIndicator={false}
               removeClippedSubviews={true}
-              maxToRenderPerBatch={10}
-              windowSize={10}
-              initialNumToRender={8}
+              maxToRenderPerBatch={8}
+              windowSize={6}
+              initialNumToRender={6}
               onScroll={handleScroll}
-              scrollEventThrottle={16}
+              scrollEventThrottle={32}
+              disableIntervalMomentum={false}
+              decelerationRate="normal"
+              bounces={true}
+              alwaysBounceVertical={false}
+              getItemLayout={(data, index) => ({
+                length: 140, // Approximate height of item card
+                offset: 140 * index,
+                index,
+              })}
             />
           )}
         </Animated.View>
