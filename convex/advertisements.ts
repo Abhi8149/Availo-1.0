@@ -123,31 +123,61 @@ export const sendNotificationsToNearbyUsers = mutation({
 export const getNotificationsByUser = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const notifications = await ctx.db
+    // Get notifications where user is direct recipient
+    const recipientNotifications = await ctx.db
       .query("notifications")
       .withIndex("by_recipient", (q) => q.eq("recipientUserId", args.userId))
-      .order("desc")
       .collect();
 
-    // Fetch related advertisement and shop data for each notification
-    const notificationsWithDetails = await Promise.all(
-      notifications.map(async (notification) => {
+    const notificationSet = new Set(recipientNotifications.map(n => n._id.toString()));
+    let mergedNotifications = [...recipientNotifications];
+
+    // Check if user exists and is a shopkeeper
+    const userDoc = await ctx.db.get(args.userId);
+    if (userDoc?.role === "shopkeeper") {
+      // Get all shops owned by the user
+      const userShops = await ctx.db
+        .query("shops")
+        .withIndex("by_owner", (q) => q.eq("ownerUid", args.userId))
+        .collect();
+
+      // Get notifications for each shop
+      for (const shop of userShops) {
+        const shopNotifications = await ctx.db
+          .query("notifications")
+          .withIndex("by_shop", (q) => q.eq("shopId", shop._id))
+          .collect();
+          
+        // Only add notifications that haven't been added yet
+        for (const notification of shopNotifications) {
+          if (!notificationSet.has(notification._id.toString())) {
+            notificationSet.add(notification._id.toString());
+            mergedNotifications.push(notification);
+          }
+        }
+      }
+    }
+
+    // Sort by sent time
+    mergedNotifications.sort((a, b) => b.sentAt - a.sentAt);
+
+    // Fetch related data for each notification
+    return Promise.all(
+      mergedNotifications.map(async (notification) => {
         const advertisement = await ctx.db.get(notification.advertisementId);
         if (!advertisement) return { ...notification, advertisement: null };
 
-        const shop = await ctx.db.get(advertisement.shopId);
+        const shop = notification.shopId ? await ctx.db.get(notification.shopId) : null;
         
         return {
           ...notification,
           advertisement: {
             ...advertisement,
-            shop: shop,
+            shop,
           },
         };
       })
     );
-
-    return notificationsWithDetails;
   },
 });
 

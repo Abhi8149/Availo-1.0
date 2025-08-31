@@ -102,29 +102,84 @@ export default function NotificationsModal({
 
   const renderNotificationItem = ({ item }: { item: any }) => (
     <TouchableOpacity
-      style={styles.notificationItem}
+      style={styles.adCard}
       onPress={() => handleNotificationPress(item)}
+      activeOpacity={0.8}
     >
-      <View style={styles.notificationHeader}>
-        <View style={styles.notificationInfo}>
-          <Text style={styles.shopName}>{item.advertisement?.shop?.name}</Text>
-          <Text style={styles.timeAgo}>{formatTimeAgo(item._creationTime)}</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+      {/* Professional Ad Badge */}
+      <View style={styles.adBadge}>
+        <Ionicons name="megaphone" size={12} color="#FFFFFF" />
+        <Text style={styles.adBadgeText}>SPECIAL OFFER</Text>
       </View>
-      <Text style={styles.notificationMessage} numberOfLines={2}>
-        {item.advertisement?.message}
-      </Text>
-      {(item.advertisement?.imageIds?.length > 0 || item.advertisement?.videoIds?.length > 0) && (
-        <View style={styles.mediaIndicator}>
-          <Ionicons name="image" size={16} color="#6B7280" />
-          <Text style={styles.mediaText}>
-            {item.advertisement?.imageIds?.length > 0 ? "Photos" : ""}
-            {item.advertisement?.imageIds?.length > 0 && item.advertisement?.videoIds?.length > 0 ? " & " : ""}
-            {item.advertisement?.videoIds?.length > 0 ? "Videos" : ""}
-          </Text>
+
+      {/* Shop Info Header */}
+      <View style={styles.adHeader}>
+        <View style={styles.shopInfo}>
+          <View style={styles.shopAvatar}>
+            <Ionicons name="storefront" size={24} color="#3B82F6" />
+          </View>
+          <View>
+            <Text style={styles.premiumShopName}>{item.advertisement?.shop?.name}</Text>
+            <View style={styles.verifiedBadge}>
+              <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+              <Text style={styles.verifiedText}>Verified Shop</Text>
+            </View>
+          </View>
         </View>
-      )}
+        <View style={styles.timeAndAction}>
+          <Text style={styles.timeAgo}>{formatTimeAgo(item._creationTime)}</Text>
+          <View style={styles.viewMoreButton}>
+            <Text style={styles.viewMoreText}>View Offer</Text>
+            <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
+          </View>
+        </View>
+      </View>
+
+      {/* Enhanced Ad Content */}
+      <View style={styles.adContentContainer}>
+        {/* Clean Title */}
+        <Text style={styles.adTitle}>
+          {item.advertisement?.title || '🎯 Special Offer'}
+        </Text>
+        
+        {/* Discount Badge */}
+        {item.advertisement?.discount && (
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>
+              {item.advertisement.discount}% OFF
+            </Text>
+          </View>
+        )}
+
+        {/* Message */}
+        <Text style={styles.adDescription} numberOfLines={2}>
+          {item.advertisement?.message}
+        </Text>
+
+        {/* Enhanced Media Preview */}
+        {(item.advertisement?.imageIds?.length > 0 || item.advertisement?.videoIds?.length > 0) && (
+          <View style={styles.mediaPreview}>
+            <View style={styles.mediaRow}>
+              {item.advertisement?.imageIds?.length > 0 && (
+                <View style={styles.mediaChip}>
+                  <Ionicons name="images" size={14} color="#3B82F6" />
+                  <Text style={styles.mediaChipText}>
+                    {item.advertisement.imageIds.length} Photo{item.advertisement.imageIds.length > 1 ? 's' : ''}
+                  </Text>
+                </View>
+              )}
+              {item.advertisement?.videoIds?.length > 0 && (
+                <View style={styles.mediaChip}>
+                  <Ionicons name="videocam" size={14} color="#3B82F6" />
+                  <Text style={styles.mediaChipText}>
+                    {item.advertisement.videoIds.length} Video{item.advertisement.videoIds.length > 1 ? 's' : ''}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 
@@ -148,7 +203,23 @@ export default function NotificationsModal({
         </View>
 
         <View style={styles.detailContent}>
-          <Text style={styles.detailMessage}>{advertisement?.message}</Text>
+          {/* Clean Detail Title */}
+          <Text style={styles.detailTitle}>
+            {advertisement?.title || 'Special Offer'}
+          </Text>
+          
+          {advertisement?.discount && (
+            <View style={styles.detailDiscountBadge}>
+              <Text style={styles.detailDiscountText}>
+                {advertisement.discount}% OFF
+              </Text>
+            </View>
+          )}
+
+          {/* Message */}
+          <Text style={styles.detailMessage}>
+            {advertisement?.message}
+          </Text>
 
           {/* Images */}
           {advertisement?.imageIds?.length > 0 && (
@@ -193,7 +264,8 @@ export default function NotificationsModal({
 
           <TouchableOpacity style={styles.shopDetailsButton} onPress={handleViewShop}>
             <Ionicons name="storefront" size={20} color="#FFFFFF" />
-            <Text style={styles.shopDetailsButtonText}>Shop Details</Text>
+            <Text style={styles.shopDetailsButtonText}>Visit Shop</Text>
+            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -317,7 +389,10 @@ export default function NotificationsModal({
           {!selectedNotification ? (
             <>
               <View style={styles.header}>
-                <Text style={styles.title}>Notifications</Text>
+                <View style={styles.headerWithIcon}>
+                  <Ionicons name="megaphone" size={24} color="#3B82F6" />
+                  <Text style={styles.title}>🔥 Special Offers & Deals</Text>
+                </View>
                 <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                   <Ionicons name="close" size={24} color="#6B7280" />
                 </TouchableOpacity>
@@ -329,10 +404,11 @@ export default function NotificationsModal({
                 </View>
               ) : notifications?.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="notifications-outline" size={64} color="#9CA3AF" />
-                  <Text style={styles.emptyTitle}>No notifications yet</Text>
+                  <Ionicons name="megaphone-outline" size={64} color="#9CA3AF" />
+                  <Text style={styles.emptyTitle}>No Special Offers Yet! 🛍️</Text>
                   <Text style={styles.emptySubtitle}>
-                    You'll receive notifications when nearby shops post advertisements
+                    Keep checking back for exclusive deals and amazing offers from your favorite shops nearby! 
+                    You'll be the first to know about flash sales and special promotions.
                   </Text>
                 </View>
               ) : (
@@ -375,6 +451,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
   },
+  headerWithIcon: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   title: {
     fontSize: 20,
     fontWeight: "600",
@@ -412,7 +493,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   listContainer: {
-    padding: 16,
+    padding: 12,
   },
   notificationItem: {
     backgroundColor: "#FFFFFF",
@@ -545,15 +626,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: 12,
     gap: 8,
     marginTop: 16,
+    shadowColor: "#2563EB",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   shopDetailsButtonText: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
   },
   
@@ -672,5 +761,212 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     textAlign: "center",
+  },
+
+  // Enhanced Professional Advertisement Styles
+  adCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    marginBottom: 12,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    position: "relative",
+  },
+  adBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#EF4444",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 3,
+    zIndex: 1,
+  },
+  adBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "600",
+    letterSpacing: 0.3,
+  },
+  adHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 10,
+    paddingRight: 60, // Space for badge
+  },
+  shopInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  shopAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#EFF6FF",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#3B82F6",
+  },
+  premiumShopName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 2,
+  },
+  verifiedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  verifiedText: {
+    fontSize: 10,
+    color: "#10B981",
+    fontWeight: "500",
+  },
+  timeAndAction: {
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  viewMoreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  viewMoreText: {
+    fontSize: 10,
+    color: "#3B82F6",
+    fontWeight: "500",
+  },
+  adContentContainer: {
+    gap: 8,
+  },
+  adTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
+    lineHeight: 20,
+  },
+  adDescription: {
+    fontSize: 14,
+    color: "#374151",
+    lineHeight: 18,
+  },
+  discountBadge: {
+    backgroundColor: "#059669",
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 6,
+  },
+  discountText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.3,
+  },
+  mediaPreview: {
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    paddingTop: 8,
+    marginTop: 4,
+  },
+  mediaRow: {
+    flexDirection: "row",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  mediaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+  },
+  mediaChipText: {
+    fontSize: 11,
+    color: "#1E40AF",
+    fontWeight: "500",
+  },
+
+  // Enhanced Detail View Styles
+  detailTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 12,
+    lineHeight: 26,
+  },
+  detailDiscountBadge: {
+    backgroundColor: "#DC2626",
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  detailDiscountText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+
+  // Enhanced Shop Button Styles
+  enhancedShopDetailsButton: {
+    backgroundColor: "#2563EB",
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 16,
+    shadowColor: "#2563EB",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  shopButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  shopButtonIcon: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    padding: 12,
+    borderRadius: 12,
+  },
+  shopButtonText: {
+    flex: 1,
   },
 });

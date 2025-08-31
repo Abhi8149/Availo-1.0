@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, StyleSheet, ActivityIndicator, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { saveAuthData, getAuthData, clearAuthData } from "../utils/auth";
 import LoginScreen from "../components/auth/LoginScreen";
 import RegisterScreen from "../components/auth/RegisterScreen";
 import ShopkeeperDashboard from "../components/shopkeeper/ShopkeeperDashboard";
@@ -23,20 +24,39 @@ export default function Index() {
    * This ensures production stability and faster app startup
    */
   useEffect(() => {
-    // Simple initialization - removed Google Auth for production stability
-    console.log('� App initialized - ready for manual login');
-    setIsCheckingAuth(false);
+    const loadSavedAuth = async () => {
+      try {
+        const authData = await getAuthData();
+        if (authData) {
+          setCurrentUser(authData.userId as Id<"users">);
+          setCurrentRole(authData.role);
+        }
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+    
+    loadSavedAuth();
   }, []);
 
-  const handleAuthSuccess = (userId: Id<"users">) => {
+  const handleAuthSuccess = async (userId: Id<"users">) => {
     console.log('✅ Auth success for user:', userId);
     setCurrentUser(userId);
+    
+    // Save auth data to persist login
+    await saveAuthData({
+      userId: userId.toString(),
+      role: currentRole
+    });
   };
 
   const handleLogout = async () => {
     console.log('🚪 Logging out user...');
     try {
-      // Clear local state - removed Google sign-out for production stability
+      // Clear persisted auth data
+      await clearAuthData();
+      
+      // Clear local state
       setCurrentUser(null);
       setCurrentRole(null);
       
@@ -49,12 +69,24 @@ export default function Index() {
     }
   };
 
-  const handleSwitchToCustomer = () => {
+  const handleSwitchToCustomer = async () => {
     setCurrentRole("customer");
+    if (currentUser) {
+      await saveAuthData({
+        userId: currentUser.toString(),
+        role: "customer"
+      });
+    }
   };
 
-  const handleSwitchToShopkeeper = () => {
+  const handleSwitchToShopkeeper = async () => {
     setCurrentRole("shopkeeper");
+    if (currentUser) {
+      await saveAuthData({
+        userId: currentUser.toString(),
+        role: "shopkeeper"
+      });
+    }
   };
 
   // Show loading screen while checking authentication

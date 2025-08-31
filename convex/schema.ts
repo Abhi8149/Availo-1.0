@@ -37,6 +37,8 @@ export default defineSchema({
       openTime: v.string(), // Format: "09:00"
       closeTime: v.string(), // Format: "18:00"
     })),
+    hasDelivery: v.optional(v.boolean()),
+    deliveryRange: v.optional(v.number()), // in kilometers
   })
     .index("by_owner", ["ownerUid"])
     .index("by_category", ["category"])
@@ -85,4 +87,14 @@ export default defineSchema({
     .index("by_recipient", ["recipientUserId"])
     .index("by_advertisement", ["advertisementId"])
     .index("by_shop", ["shopId"]),
+
+  verificationCodes: defineTable({
+    userId: v.string(),
+    code: v.string(),
+    email: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_email", ["email"]),
 });

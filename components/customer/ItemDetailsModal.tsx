@@ -28,6 +28,8 @@ interface Item {
   shopName?: string;
   shopId?: Id<"shops">;
   offer?: string;
+  isDeliveryAvailable?: boolean;
+  isInDeliveryRange?: boolean;
 }
 
 interface ItemDetailsModalProps {
@@ -37,6 +39,8 @@ interface ItemDetailsModalProps {
   onAddToWishlist?: (item: Item) => void;
   isInWishlist?: boolean;
   onShopPress?: (shopId: Id<"shops">) => void;
+  onAddToCart?: (item: Item) => void;
+  isInCart?: boolean;
 }
 
 export default function ItemDetailsModal({ 
@@ -45,7 +49,9 @@ export default function ItemDetailsModal({
   item, 
   onAddToWishlist,
   isInWishlist = false,
-  onShopPress
+  onShopPress,
+  onAddToCart,
+  isInCart = false
 }: ItemDetailsModalProps) {
   const [imageFullscreen, setImageFullscreen] = useState(false);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -381,6 +387,45 @@ export default function ItemDetailsModal({
       marginTop: 4,
       fontStyle: 'italic',
     },
+    cartButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 14,
+      backgroundColor: "#2563EB",
+      borderRadius: 12,
+      gap: 8,
+      marginBottom: 12,
+    },
+    cartButtonText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#FFFFFF",
+    },
+    cartButtonAdded: {
+      backgroundColor: "#DCFCE7",
+    },
+    cartButtonAddedText: {
+      color: "#16A34A",
+    },
+    cartButtonDisabled: {
+      backgroundColor: "#E5E7EB",
+    },
+    cartButtonTextDisabled: {
+      color: "#9CA3AF",
+    },
+    deliveryMessageContainer: {
+      backgroundColor: "#FEF2F2",
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 12,
+    },
+    deliveryMessageText: {
+      color: "#DC2626",
+      fontSize: 14,
+      textAlign: "center",
+      fontWeight: "500",
+    },
   });
 
   // Enhanced Fullscreen Image Modal Component
@@ -553,24 +598,68 @@ export default function ItemDetailsModal({
             </View>
 
             {/* Action Buttons */}
-            {onAddToWishlist && (
-              <View style={styles.actionSection}>
-                {isInWishlist ? (
-                  <View style={styles.wishlistButtonAdded}>
-                    <Ionicons name="heart" size={20} color="#16A34A" />
-                    <Text style={styles.wishlistButtonAddedText}>In Wishlist</Text>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.wishlistButton}
-                    onPress={() => onAddToWishlist(item)}
-                  >
-                    <Ionicons name="heart-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.wishlistButtonText}>Add to Wishlist</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
+            <View style={styles.actionSection}>
+              {/* Add to Cart Section */}
+              {onAddToCart && (
+                <>
+                  {/* Show Add to Cart button only when delivery is available and in range */}
+                  {item.isDeliveryAvailable === true && item.isInDeliveryRange === true ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.cartButton,
+                        isInCart && styles.cartButtonAdded,
+                        !item.inStock && styles.cartButtonDisabled
+                      ]}
+                      onPress={() => item.inStock && onAddToCart(item)}
+                      disabled={!item.inStock}
+                    >
+                      <Ionicons 
+                        name={isInCart ? "cart" : "cart-outline"} 
+                        size={20} 
+                        color={isInCart ? "#16A34A" : !item.inStock ? "#9CA3AF" : "#FFFFFF"} 
+                      />
+                      <Text style={[
+                        styles.cartButtonText,
+                        isInCart && styles.cartButtonAddedText,
+                        !item.inStock && styles.cartButtonTextDisabled
+                      ]}>
+                        {!item.inStock ? "Out of Stock" : isInCart ? "Added to Cart" : "Add to Cart"}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.deliveryMessageContainer}>
+                      <Text style={styles.deliveryMessageText}>
+                        {item.isDeliveryAvailable === false 
+                          ? "This shop does not offer delivery service" 
+                          : item.isInDeliveryRange === false 
+                          ? "This shop is outside your delivery range"
+                          : "Delivery status unavailable"}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              )}
+
+              {/* Add to Wishlist Button */}
+              {onAddToWishlist && (
+                <>
+                  {isInWishlist ? (
+                    <View style={styles.wishlistButtonAdded}>
+                      <Ionicons name="heart" size={20} color="#16A34A" />
+                      <Text style={styles.wishlistButtonAddedText}>In Wishlist</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.wishlistButton}
+                      onPress={() => onAddToWishlist(item)}
+                    >
+                      <Ionicons name="heart-outline" size={20} color="#FFFFFF" />
+                      <Text style={styles.wishlistButtonText}>Add to Wishlist</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </View>
           </ScrollView>
         </View>
       </Modal>

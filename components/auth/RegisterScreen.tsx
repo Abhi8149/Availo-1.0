@@ -11,10 +11,11 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { PasswordInput } from "../common/PasswordInput";
+import VerificationScreen from "./VerificationScreen";
 
 interface RegisterScreenProps {
   onAuthSuccess: (userId: Id<"users">) => void;
@@ -27,9 +28,12 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"shopkeeper" | "customer" | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   const createUser = useMutation(api.users.createUser);
-  const getUserByEmail = useMutation(api.users.getUserByEmail);
+  const sendVerificationCode = useAction(api.auth.sendVerificationCode);
+  const verifyCode = useMutation(api.auth.verifyCode);
 
   const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !password.trim() || !role) {
@@ -44,19 +48,66 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
 
     setLoading(true);
     try {
-      const userId = await createUser({
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        role,
-      });
-      
-      onAuthSuccess(userId);
+      // Generate a temporary userId (could be a UUID or just use email)
+      const tempUserId = email.toLowerCase().trim();
+      setPendingUserId(tempUserId);
+      await sendVerificationCode({ email: email.toLowerCase().trim(), userId: tempUserId });
+      setShowVerification(true);
     } catch (error: any) {
       Alert.alert("Error", error.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  const handleVerify = async (code: string) => {
+    if (!pendingUserId) return false;
+    try {
+      const result = await verifyCode({ userId: pendingUserId, code });
+      if (result.success) {
+        // Only now create the user in the database
+        const userId = await createUser({
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          role: role as "shopkeeper" | "customer",
+        });
+        onAuthSuccess(userId as any);
+        setShowVerification(false);
+        setPendingUserId(null);
+        return true;
+      } else {
+        // Show the specific error message
+        Alert.alert("Verification Failed", result.message);
+        return false;
+      }
+    } catch (error) {
+      console.error("Verification error:", error);
+      Alert.alert("Error", "Failed to verify code. Please try again.");
+      return false;
+    }
+  };
+
+  if (showVerification && pendingUserId) {
+    return (
+      <VerificationScreen
+        email={email}
+        onVerify={handleVerify}
+        onResend={async () => {
+          await sendVerificationCode({ email: email.toLowerCase().trim(), userId: pendingUserId });
+          Alert.alert("Verification code resent", `A new code has been sent to ${email}`);
+        }}
+        onCancel={() => {
+          setShowVerification(false);
+          setPendingUserId(null);
+          setName("");
+          setEmail("");
+          setPassword("");
+          setRole(null);
+          onSwitchToLogin();
+        }}
+      />
+    );
+  }
 
   return (
     <KeyboardAvoidingView 
@@ -70,7 +121,6 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
             <Text style={styles.title}>Join ShopStatus</Text>
             <Text style={styles.subtitle}>Create your account</Text>
           </View>
-
           <View style={styles.form}>
             <View style={styles.inputContainer}>
               <Ionicons name="person-outline" size={20} color="#6B7280" style={styles.inputIcon} />
@@ -83,7 +133,6 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
                 placeholderTextColor="#888"
               />
             </View>
-
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
@@ -97,14 +146,12 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
                 placeholderTextColor="#888"
               />
             </View>
-
             <PasswordInput
               placeholder="Password (min 6 characters)"
               style={styles.input}
               value={password}
               onChangeText={setPassword}
             />
-
             <View style={styles.roleSection}>
               <Text style={styles.roleTitle}>I am a:</Text>
               <View style={styles.roleButtons}>
@@ -127,7 +174,6 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
                     Shopkeeper
                   </Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity
                   style={[
                     styles.roleButton,
@@ -149,7 +195,6 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
                 </TouchableOpacity>
               </View>
             </View>
-
             <TouchableOpacity 
               style={[styles.registerButton, loading && styles.registerButtonDisabled]}
               onPress={handleRegister}
@@ -159,7 +204,6 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
                 {loading ? "Creating Account..." : "Create Account"}
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity onPress={onSwitchToLogin}>
               <Text style={styles.switchText}>
                 Already have an account? <Text style={styles.switchTextBold}>Sign In</Text>

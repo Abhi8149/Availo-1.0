@@ -1,0 +1,49 @@
+import { Id } from "../convex/_generated/dataModel";
+
+export interface CartItem {
+  _id: Id<"items">;
+  name: string;
+  price?: number;
+  imageId?: Id<"_storage">;
+  shopId?: Id<"shops">;
+  shopName?: string;
+  quantity: number;
+  inStock: boolean;
+  createdAt: number;
+  updatedAt: number;
+  category?: string;
+  description?: string;
+  priceDescription?: string;
+  offer?: string;
+}
+
+export interface Shop {
+  _id: Id<"shops">;
+  name: string;
+  category: string;
+  location: {
+    lat: number;
+    lng: number;
+    address?: string;
+  };
+  isOpen: boolean;
+  lastUpdated: number;
+  mobileNumber?: string;
+  shopImageId?: Id<"_storage">;
+  shopImageIds?: Id<"_storage">[];
+  estimatedTime?: {
+    hours: number;
+    minutes: number;
+    action: "opening" | "closing";
+  };
+  distance?: number | null;
+  hasDelivery?: boolean;
+  deliveryRange?: number;
+}
+
+export interface User {
+  _id: Id<"users">;
+  name: string;
+  email: string;
+  role: "shopkeeper" | "customer";
+}

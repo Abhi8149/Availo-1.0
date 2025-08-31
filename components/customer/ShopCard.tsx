@@ -27,6 +27,8 @@ interface Shop {
     openTime: string; // Format: "09:00" 
     closeTime: string; // Format: "18:00"
   };
+  hasDelivery?: boolean;
+  deliveryRange?: number;
   distance?: number | null; // Distance in kilometers
 }
 
@@ -169,6 +171,19 @@ export default function ShopCard({ shop, onViewInventory, showInventoryButton = 
               <Ionicons name="time-outline" size={12} color="#6B7280" />
               <Text style={styles.businessHoursText}>
                 Regular hours: {formatBusinessHours(shop.businessHours)}
+              </Text>
+            </View>
+          )}
+          
+          {/* Delivery Information */}
+          {shop.hasDelivery && (
+            <View style={styles.deliveryContainer}>
+              <Ionicons name="bicycle" size={12} color="#2563EB" />
+              <Text style={styles.deliveryText}>
+                Delivers up to {shop.deliveryRange}km
+                {shop.distance && shop.distance <= (shop.deliveryRange ?? 0) 
+                  ? ' (Available here)'
+                  : ' (Out of range)'}
               </Text>
             </View>
           )}
@@ -676,6 +691,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   directionsText: {
+    fontSize: 12,
+    color: "#2563EB",
+    fontWeight: "500",
+  },
+  deliveryContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  deliveryText: {
     fontSize: 12,
     color: "#2563EB",
     fontWeight: "500",
