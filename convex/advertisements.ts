@@ -8,6 +8,9 @@ export const createAdvertisement = mutation({
     message: v.string(),
     imageIds: v.optional(v.array(v.id("_storage"))),
     videoIds: v.optional(v.array(v.id("_storage"))),
+    hasDiscount: v.optional(v.boolean()),
+    discountPercentage: v.optional(v.number()),
+    discountText: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const advertisementId = await ctx.db.insert("advertisements", {
@@ -20,6 +23,9 @@ export const createAdvertisement = mutation({
       notificationsSent: 0,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      hasDiscount: args.hasDiscount,
+      discountPercentage: args.discountPercentage,
+      discountText: args.discountText,
     });
 
     return advertisementId;
@@ -54,6 +60,9 @@ export const updateAdvertisement = mutation({
     message: v.optional(v.string()),
     imageIds: v.optional(v.array(v.id("_storage"))),
     videoIds: v.optional(v.array(v.id("_storage"))),
+    hasDiscount: v.optional(v.boolean()),
+    discountPercentage: v.optional(v.number()),
+    discountText: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const updates: any = {
@@ -63,6 +72,9 @@ export const updateAdvertisement = mutation({
     if (args.message !== undefined) updates.message = args.message;
     if (args.imageIds !== undefined) updates.imageIds = args.imageIds;
     if (args.videoIds !== undefined) updates.videoIds = args.videoIds;
+    if (args.hasDiscount !== undefined) updates.hasDiscount = args.hasDiscount;
+    if (args.discountPercentage !== undefined) updates.discountPercentage = args.discountPercentage;
+    if (args.discountText !== undefined) updates.discountText = args.discountText;
 
     await ctx.db.patch(args.advertisementId, updates);
   },
@@ -71,7 +83,24 @@ export const updateAdvertisement = mutation({
 export const deleteAdvertisement = mutation({
   args: { advertisementId: v.id("advertisements") },
   handler: async (ctx, args) => {
+    // First, delete all notifications related to this advertisement
+    const relatedNotifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_advertisement", (q) => q.eq("advertisementId", args.advertisementId))
+      .collect();
+    
+    // Delete all related notifications
+    for (const notification of relatedNotifications) {
+      await ctx.db.delete(notification._id);
+    }
+    
+    // Then delete the advertisement itself
     await ctx.db.delete(args.advertisementId);
+    
+    return { 
+      success: true, 
+      deletedNotifications: relatedNotifications.length 
+    };
   },
 });
 
@@ -92,13 +121,28 @@ export const sendNotificationsToNearbyUsers = mutation({
     // Get all users (in a real app, you'd filter by location)
     const users = await ctx.db.query("users").collect();
     
-    // For now, we'll send to all users as a demo
-    // In a real implementation, you'd filter users by location
-    const nearbyUsers = users.filter(user => user.role === "customer");
+    // Send notifications to ALL users (both customers and shopkeepers)
+    // Shopkeepers can view advertisements when in customer mode
+    const nearbyUsers = users;
 
     let notificationCount = 0;
+    let skippedCount = 0;
     
     for (const user of nearbyUsers) {
+      // Check if this specific user already has a notification for this advertisement
+      const existingNotification = await ctx.db
+        .query("notifications")
+        .withIndex("by_advertisement_recipient", (q) => 
+          q.eq("advertisementId", args.advertisementId).eq("recipientUserId", user._id)
+        )
+        .first();
+      
+      if (existingNotification) {
+        skippedCount++;
+        continue; // Skip this user, they already have this notification
+      }
+
+      // Create notification for this user
       await ctx.db.insert("notifications", {
         advertisementId: args.advertisementId,
         recipientUserId: user._id,
@@ -116,54 +160,30 @@ export const sendNotificationsToNearbyUsers = mutation({
       updatedAt: Date.now(),
     });
 
-    return notificationCount;
+    return {
+      sent: notificationCount,
+      skipped: skippedCount,
+      total: notificationCount + skippedCount
+    };
   },
 });
 
 export const getNotificationsByUser = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    // Get notifications where user is direct recipient
-    const recipientNotifications = await ctx.db
+    // Get all notifications where user is direct recipient
+    // This will include all advertisements sent to customers (including shopkeepers in customer mode)
+    const notifications = await ctx.db
       .query("notifications")
       .withIndex("by_recipient", (q) => q.eq("recipientUserId", args.userId))
       .collect();
 
-    const notificationSet = new Set(recipientNotifications.map(n => n._id.toString()));
-    let mergedNotifications = [...recipientNotifications];
-
-    // Check if user exists and is a shopkeeper
-    const userDoc = await ctx.db.get(args.userId);
-    if (userDoc?.role === "shopkeeper") {
-      // Get all shops owned by the user
-      const userShops = await ctx.db
-        .query("shops")
-        .withIndex("by_owner", (q) => q.eq("ownerUid", args.userId))
-        .collect();
-
-      // Get notifications for each shop
-      for (const shop of userShops) {
-        const shopNotifications = await ctx.db
-          .query("notifications")
-          .withIndex("by_shop", (q) => q.eq("shopId", shop._id))
-          .collect();
-          
-        // Only add notifications that haven't been added yet
-        for (const notification of shopNotifications) {
-          if (!notificationSet.has(notification._id.toString())) {
-            notificationSet.add(notification._id.toString());
-            mergedNotifications.push(notification);
-          }
-        }
-      }
-    }
-
-    // Sort by sent time
-    mergedNotifications.sort((a, b) => b.sentAt - a.sentAt);
+    // Sort by sent time (newest first)
+    notifications.sort((a, b) => b.sentAt - a.sentAt);
 
     // Fetch related data for each notification
     return Promise.all(
-      mergedNotifications.map(async (notification) => {
+      notifications.map(async (notification) => {
         const advertisement = await ctx.db.get(notification.advertisementId);
         if (!advertisement) return { ...notification, advertisement: null };
 
@@ -187,5 +207,152 @@ export const markNotificationAsRead = mutation({
     await ctx.db.patch(args.notificationId, {
       isRead: true,
     });
+  },
+});
+
+// Utility function to clean up notifications for shopkeepers viewing their own ads
+export const cleanupShopkeeperSelfNotifications = mutation({
+  args: {},
+  handler: async (ctx, args) => {
+    // Get all notifications
+    const allNotifications = await ctx.db.query("notifications").collect();
+    
+    let deletedCount = 0;
+    
+    // Check each notification to see if the recipient is the same as the advertisement creator
+    for (const notification of allNotifications) {
+      const advertisement = await ctx.db.get(notification.advertisementId);
+      
+      if (advertisement && advertisement.shopOwnerId === notification.recipientUserId) {
+        // This is a shopkeeper receiving notification for their own advertisement
+        await ctx.db.delete(notification._id);
+        deletedCount++;
+      }
+    }
+    
+    return { deletedCount };
+  },
+});
+
+// Utility function to clean up duplicate notifications
+export const cleanupDuplicateNotifications = mutation({
+  args: {},
+  handler: async (ctx, args) => {
+    // Get all notifications
+    const allNotifications = await ctx.db.query("notifications").collect();
+    
+    // Group by advertisementId + recipientUserId combination
+    const notificationGroups = new Map<string, any[]>();
+    
+    for (const notification of allNotifications) {
+      const key = `${notification.advertisementId}_${notification.recipientUserId}`;
+      if (!notificationGroups.has(key)) {
+        notificationGroups.set(key, []);
+      }
+      notificationGroups.get(key)!.push(notification);
+    }
+    
+    let deletedCount = 0;
+    
+    // For each group, keep only the earliest notification and delete the rest
+    for (const [key, notifications] of notificationGroups) {
+      if (notifications.length > 1) {
+        // Sort by sentAt time, keep the earliest
+        notifications.sort((a, b) => a.sentAt - b.sentAt);
+        const toKeep = notifications[0];
+        const toDelete = notifications.slice(1);
+        
+        // Delete duplicates
+        for (const duplicate of toDelete) {
+          await ctx.db.delete(duplicate._id);
+          deletedCount++;
+        }
+      }
+    }
+    
+    return { deletedCount };
+  },
+});
+
+// Utility function to fix shopkeeper self-notifications for existing advertisements
+export const fixShopkeeperSelfNotifications = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Get all advertisements
+    const advertisements = await ctx.db.query("advertisements").collect();
+    
+    let notificationsCreated = 0;
+    
+    for (const advertisement of advertisements) {
+      // Get the shopkeeper who created this advertisement
+      const shopkeeper = await ctx.db.get(advertisement.shopOwnerId);
+      
+      // Check if shopkeeper has customer role or dual role
+      if (shopkeeper && shopkeeper.role === "customer") {
+        // Check if notification already exists
+        const existingNotification = await ctx.db
+          .query("notifications")
+          .withIndex("by_advertisement_recipient", (q) => 
+            q.eq("advertisementId", advertisement._id).eq("recipientUserId", shopkeeper._id)
+          )
+          .first();
+        
+        if (!existingNotification) {
+          // Create notification for shopkeeper to see their own advertisement
+          await ctx.db.insert("notifications", {
+            advertisementId: advertisement._id,
+            recipientUserId: shopkeeper._id,
+            shopId: advertisement.shopId,
+            message: "New advertisement from your shop",
+            isRead: false,
+            sentAt: Date.now(),
+          });
+          notificationsCreated++;
+        }
+      }
+    }
+    
+    return { notificationsCreated };
+  },
+});
+
+// Utility function to ensure all users see all advertisements
+export const ensureAllUsersHaveAllNotifications = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Get all advertisements
+    const advertisements = await ctx.db.query("advertisements").collect();
+    
+    // Get ALL users (both customers and shopkeepers)
+    const allUsers = await ctx.db.query("users").collect();
+    
+    let notificationsCreated = 0;
+    
+    for (const advertisement of advertisements) {
+      for (const user of allUsers) {
+        // Check if notification already exists
+        const existingNotification = await ctx.db
+          .query("notifications")
+          .withIndex("by_advertisement_recipient", (q) => 
+            q.eq("advertisementId", advertisement._id).eq("recipientUserId", user._id)
+          )
+          .first();
+        
+        if (!existingNotification) {
+          // Create notification for this user
+          await ctx.db.insert("notifications", {
+            advertisementId: advertisement._id,
+            recipientUserId: user._id,
+            shopId: advertisement.shopId,
+            message: "New advertisement available",
+            isRead: false,
+            sentAt: advertisement.createdAt || Date.now(),
+          });
+          notificationsCreated++;
+        }
+      }
+    }
+    
+    return { notificationsCreated };
   },
 });

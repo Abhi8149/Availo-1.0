@@ -32,6 +32,7 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   const createUser = useMutation(api.users.createUser);
+  const getUserByEmail = useMutation(api.users.getUserByEmail);
   const sendVerificationCode = useAction(api.auth.sendVerificationCode);
   const verifyCode = useMutation(api.auth.verifyCode);
 
@@ -48,7 +49,16 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
 
     setLoading(true);
     try {
-      // Generate a temporary userId (could be a UUID or just use email)
+      // First check if email already exists
+      const existingUser = await getUserByEmail({ email: email.toLowerCase().trim() });
+      
+      if (existingUser) {
+        Alert.alert("Email Already Exists", "The entered email already exists in our database. Please enter a new one.");
+        setLoading(false);
+        return;
+      }
+
+      // If email doesn't exist, proceed with verification
       const tempUserId = email.toLowerCase().trim();
       setPendingUserId(tempUserId);
       await sendVerificationCode({ email: email.toLowerCase().trim(), userId: tempUserId });
@@ -69,6 +79,7 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
         const userId = await createUser({
           name: name.trim(),
           email: email.toLowerCase().trim(),
+          password: password.trim(), // Include password
           role: role as "shopkeeper" | "customer",
         });
         onAuthSuccess(userId as any);

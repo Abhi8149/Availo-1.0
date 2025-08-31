@@ -18,15 +18,15 @@ import { PasswordInput } from "../common/PasswordInput";
 interface LoginScreenProps {
   onAuthSuccess: (userId: Id<"users">) => void;
   onSwitchToRegister: () => void;
+  onForgotPassword: () => void;
 }
 
-export default function LoginScreen({ onAuthSuccess, onSwitchToRegister }: LoginScreenProps) {
+export default function LoginScreen({ onAuthSuccess, onSwitchToRegister, onForgotPassword }: LoginScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const getUserByEmail = useMutation(api.users.getUserByEmail);
-  const createUser = useMutation(api.users.createUser);
+  const authenticateUser = useMutation(api.users.authenticateUser);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -36,18 +36,17 @@ export default function LoginScreen({ onAuthSuccess, onSwitchToRegister }: Login
 
     setLoading(true);
     try {
-      // In a real app, you'd validate password against a hash
-      // For demo purposes, we'll just check if user exists
-      const user = await getUserByEmail({ email: email.toLowerCase().trim() });
+      const user = await authenticateUser({ 
+        email: email.toLowerCase().trim(),
+        password: password.trim()
+      });
       
       if (user) {
         onAuthSuccess(user._id);
-      } else {
-        Alert.alert("Error", "Invalid email or password");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      Alert.alert("Error", "Login failed. Please try again.");
+      Alert.alert("Error", error.message || "Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -95,6 +94,10 @@ export default function LoginScreen({ onAuthSuccess, onSwitchToRegister }: Login
             <Text style={styles.loginButtonText}>
               {loading ? "Signing In..." : "Sign In"}
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={onForgotPassword} style={styles.forgotPasswordButton}>
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={onSwitchToRegister}>
@@ -199,5 +202,14 @@ const styles = StyleSheet.create({
   switchTextBold: {
     color: "#2563EB",
     fontWeight: "600",
+  },
+  forgotPasswordButton: {
+    alignItems: 'center',
+    marginVertical: 15,
+  },
+  forgotPasswordText: {
+    color: '#007AFF',
+    fontSize: 16,
+    textDecorationLine: 'underline',
   },
 });

@@ -20,6 +20,7 @@ import type * as files from "../files.js";
 import type * as items from "../items.js";
 import type * as shops from "../shops.js";
 import type * as users from "../users.js";
+import type * as verifyEmail from "../verifyEmail.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   items: typeof items;
   shops: typeof shops;
   users: typeof users;
+  verifyEmail: typeof verifyEmail;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
