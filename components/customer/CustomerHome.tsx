@@ -193,6 +193,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   }, [searchTerm]);
 
   // Dummy isSearching for now
+  //Here I have changes a little bit
   const isSearching = false;
 
   // Check existing location permission and get location automatically
