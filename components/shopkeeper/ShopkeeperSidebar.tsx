@@ -46,7 +46,12 @@ export default function ShopkeeperSidebar({
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [editProfileVisible, setEditProfileVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  
   const updateUserProfile = useMutation(api.users.updateUserProfile);
+  const deleteUserAccount = useMutation(api.users.deleteUserAccount);
 
   const handleSwitchRole = () => {
     Alert.alert(
@@ -137,6 +142,73 @@ export default function ShopkeeperSidebar({
         },
       ]
     );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? You won't be able to recover your account after this.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete Account", 
+          style: "destructive",
+          onPress: () => setDeleteModalVisible(true)
+        }
+      ]
+    );
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletePassword.trim()) {
+      Alert.alert("Error", "Please enter your password");
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      await deleteUserAccount({
+        userId: user._id as any,
+        password: deletePassword.trim()
+      });
+      
+      Alert.alert(
+        "Account Deleted",
+        "Your account has been successfully deleted.",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              setDeleteModalVisible(false);
+              setDeletePassword("");
+              onClose();
+              onLogout();
+            }
+          }
+        ]
+      );
+    } catch (error: any) {
+      if (error.message === "Incorrect password") {
+        Alert.alert(
+          "Password Does Not Match", 
+          "The password you entered does not match your current password.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                setDeleteModalVisible(false);
+                setDeletePassword("");
+                onClose();
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert("Error", error.message || "Failed to delete account. Please try again.");
+      }
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const renderStars = () => {
@@ -332,6 +404,24 @@ export default function ShopkeeperSidebar({
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
               </TouchableOpacity>
+
+              {/* Delete Account */}
+              <TouchableOpacity style={styles.menuItem} onPress={handleDeleteAccount}>
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.menuIcon, { backgroundColor: "#FEE2E2" }]}>
+                    <Ionicons name="trash" size={20} color="#DC2626" />
+                  </View>
+                  <View style={styles.menuItemText}>
+                    <Text style={[styles.menuItemTitle, { color: "#DC2626" }]}>
+                      Delete Account
+                    </Text>
+                    <Text style={styles.menuItemSubtitle}>
+                      Permanently delete your account
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
@@ -474,6 +564,55 @@ export default function ShopkeeperSidebar({
                 </View>
               </View>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Account Modal */}
+      <Modal
+        visible={deleteModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            
+            <Text style={styles.deleteWarningText}>
+              This action cannot be undone. Enter your password to confirm:
+            </Text>
+            
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Enter your password"
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              secureTextEntry={true}
+              autoFocus={true}
+            />
+            
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setDeletePassword("");
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.deleteButton, deleteLoading && styles.deleteButtonDisabled]}
+                onPress={handleConfirmDelete}
+                disabled={deleteLoading}
+              >
+                <Text style={styles.deleteButtonText}>
+                  {deleteLoading ? "Deleting..." : "Delete"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -786,5 +925,77 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
     lineHeight: 18,
+  },
+  deleteWarning: {
+    alignItems: "center",
+    padding: 24,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  deleteWarningTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#DC2626",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  deleteWarningText: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  deleteDataList: {
+    alignSelf: "stretch",
+  },
+  deleteDataItem: {
+    fontSize: 14,
+    color: "#4B5563",
+    marginBottom: 6,
+  },
+  passwordSection: {
+    marginBottom: 24,
+  },
+  passwordLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#1F2937",
+    marginBottom: 12,
+  },
+  passwordInput: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: "#1F2937",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  modalBody: {
+    flex: 1,
+  },
+  modalFooter: {
+    flexDirection: "row",
+    gap: 12,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  deleteButton: {
+    flex: 1,
+    backgroundColor: "#DC2626",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+  },
+  deleteButtonDisabled: {
+    backgroundColor: "#F87171",
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });

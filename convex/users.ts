@@ -100,3 +100,91 @@ export const getUser = query({
     return await ctx.db.get(args.userId);
   },
 });
+
+export const deleteUserAccount = mutation({
+  args: { 
+    userId: v.id("users"),
+    password: v.string()
+  },
+  handler: async (ctx, args) => {
+    // Get the user first
+    const user = await ctx.db.get(args.userId);
+    
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Verify password
+    if (!user.password || user.password !== args.password) {
+      throw new Error("Incorrect password");
+    }
+
+    // Delete all user-related data
+    
+    // 1. Delete user's shops if they are a shopkeeper
+    const userShops = await ctx.db
+      .query("shops")
+      .withIndex("by_owner", (q) => q.eq("ownerUid", args.userId))
+      .collect();
+    
+    for (const shop of userShops) {
+      // Delete all items in each shop
+      const shopItems = await ctx.db
+        .query("items")
+        .withIndex("by_shop", (q) => q.eq("shopId", shop._id))
+        .collect();
+      
+      for (const item of shopItems) {
+        await ctx.db.delete(item._id);
+      }
+      
+      // Delete all advertisements for each shop
+      const shopAds = await ctx.db
+        .query("advertisements")
+        .withIndex("by_shop", (q) => q.eq("shopId", shop._id))
+        .collect();
+      
+      for (const ad of shopAds) {
+        await ctx.db.delete(ad._id);
+      }
+      
+      // Delete the shop
+      await ctx.db.delete(shop._id);
+    }
+
+    // 2. Delete user's notifications
+    const userNotifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_recipient", (q) => q.eq("recipientUserId", args.userId))
+      .collect();
+    
+    for (const notification of userNotifications) {
+      await ctx.db.delete(notification._id);
+    }
+
+    // 3. Delete user's verification codes
+    const userCodes = await ctx.db
+      .query("verificationCodes")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId.toString()))
+      .collect();
+    
+    for (const code of userCodes) {
+      await ctx.db.delete(code._id);
+    }
+
+    // 4. Delete user's password reset codes
+    const userResetCodes = await ctx.db
+      .query("passwordResetCodes")
+      .filter((q) => q.eq(q.field("email"), user.email))
+      .collect();
+    
+    for (const resetCode of userResetCodes) {
+      await ctx.db.delete(resetCode._id);
+    }
+
+    // 5. Finally, delete the user
+    await ctx.db.delete(args.userId);
+
+    return { success: true, message: "Account deleted successfully" };
+  },
+});
