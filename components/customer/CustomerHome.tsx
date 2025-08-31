@@ -73,6 +73,8 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   const scrollY = useRef(new Animated.Value(0)).current;
   // Approx total header height (compact + search mode + search bar + filters + results)
   const TOTAL_HEADER_HEIGHT = 260;
+  // Small extra gap between the bottom of the header (status/filters) and the first shop
+  const HEADER_TO_SHOPS_GAP = 24;
   // Respect device safe area so header doesn't overlap status bar
   const insets = useSafeAreaInsets();
 
@@ -178,6 +180,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   const searchAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const [filtersVisible, setFiltersVisible] = useState(true);
+  const [headerTouchable, setHeaderTouchable] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [itemDetailsVisible, setItemDetailsVisible] = useState(false);
   const [selectedShopForInventory, setSelectedShopForInventory] = useState<any>(null);
@@ -650,6 +653,8 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
         Animated.timing(filtersAnim, { toValue: 0, duration: 100, useNativeDriver: false }).start();
         Animated.timing(searchAnim, { toValue: 0, duration: 100, useNativeDriver: false }).start();
         setFiltersVisible(false);
+  // make header non-touchable so touches pass to list
+  if (headerTouchable) setHeaderTouchable(false);
       }
     } else {
       // Not a fast fling: behave proportionally to scroll offset for a smooth gradual collapse
@@ -664,9 +669,11 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
       if (value <= 0.03 && meta.visible) {
         meta.visible = false;
         setFiltersVisible(false);
+  if (headerTouchable) setHeaderTouchable(false);
       } else if (value >= 0.97 && !meta.visible) {
         meta.visible = true;
         setFiltersVisible(true);
+  if (!headerTouchable) setHeaderTouchable(true);
       }
     }
 
@@ -677,7 +684,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   return (
     <SafeAreaView style={styles.container}>
       {/* Header wrapper (absolute) so list scrolls under it */}
-  <View style={{ position: 'absolute', top: insets.top, left: 0, right: 0, zIndex: 20 }}>
+  <View pointerEvents={headerTouchable ? 'auto' : 'box-none'} style={{ position: 'absolute', top: insets.top, left: 0, right: 0, zIndex: 20 }}>
           {/* Compact Modern Header */}
           <View style={styles.compactHeader}>
         <View style={styles.headerContent}>
@@ -952,7 +959,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
                   showInventoryButton={true}
                 />
               ) : null}
-              contentContainerStyle={[styles.itemsList, { paddingTop: TOTAL_HEADER_HEIGHT + insets.top }]}
+              contentContainerStyle={[styles.itemsList, { paddingTop: TOTAL_HEADER_HEIGHT + insets.top + HEADER_TO_SHOPS_GAP }]}
               showsVerticalScrollIndicator={false}
               removeClippedSubviews={true}
               maxToRenderPerBatch={8}
@@ -1027,7 +1034,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
                   </View>
                 </TouchableOpacity>
               ) : null}
-              contentContainerStyle={[styles.shopsList, { paddingTop: TOTAL_HEADER_HEIGHT + insets.top }]}
+              contentContainerStyle={[styles.shopsList, { paddingTop: TOTAL_HEADER_HEIGHT + insets.top + HEADER_TO_SHOPS_GAP }]}
               showsVerticalScrollIndicator={false}
               removeClippedSubviews={true}
               maxToRenderPerBatch={10}
