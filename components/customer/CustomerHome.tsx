@@ -14,7 +14,7 @@ import {
   Alert,
   AppState,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from 'expo-location';
 import { useQuery, useMutation } from "convex/react";
@@ -69,6 +69,12 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   
   // Animation for popup
   const popupAnim = useRef(new Animated.Value(0)).current;
+  // Use a native-driven scroll value to power UI-thread animations
+  const scrollY = useRef(new Animated.Value(0)).current;
+  // Approx total header height (compact + search mode + search bar + filters + results)
+  const TOTAL_HEADER_HEIGHT = 260;
+  // Respect device safe area so header doesn't overlap status bar
+  const insets = useSafeAreaInsets();
 
   // Load cart from AsyncStorage on mount
   useEffect(() => {
@@ -614,42 +620,63 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   // Animation for hiding/showing filters on scroll
   // ...other state variables...j
 
-  // Scroll handler for FlatList with throttling
-  const handleScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
+  // Scroll handler for FlatList (keeps JS-side visibility logic and velocity detection)
+  const handleScroll = (event: { nativeEvent: { contentOffset: { y: number } } }) => {
     const offsetY = event.nativeEvent.contentOffset.y;
-    if (offsetY > 20) {
-      if (filtersVisible) {
-        Animated.timing(filtersAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }).start();
-        Animated.timing(searchAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }).start();
+    // Velocity-aware, proportional hide on slow scroll + instant hide on fast scroll
+  // Distance (px) over which the header fully collapses during slow scroll
+  // Reduced so the header (including search bar) collapses faster on slow scroll
+  const HIDE_DISTANCE = 140; // was 220
+    // Fast scroll threshold (px per ms). If downward velocity exceeds this, hide immediately
+    const FAST_VELOCITY_PX_PER_MS = 0.5; // ~500 px/s
+
+    // Keep a ref to last offset/time and visibility to compute velocity & avoid repeated state toggles
+    if (!(handleScroll as any).__meta) {
+      (handleScroll as any).__meta = { lastOffset: 0, lastTime: Date.now(), visible: true, manualHidden: false };
+    }
+    const meta = (handleScroll as any).__meta as { lastOffset: number; lastTime: number; visible: boolean; manualHidden: boolean };
+
+    const now = Date.now();
+    const dt = Math.max(1, now - meta.lastTime); // ms
+    const dy = offsetY - meta.lastOffset; // px
+    const velocity = dy / dt; // px per ms (positive = scrolling down)
+
+    // Fast downward fling -> hide immediately
+    if (velocity > FAST_VELOCITY_PX_PER_MS) {
+      if (meta.visible || !meta.manualHidden) {
+        meta.visible = false;
+        meta.manualHidden = true;
+        Animated.timing(filtersAnim, { toValue: 0, duration: 100, useNativeDriver: false }).start();
+        Animated.timing(searchAnim, { toValue: 0, duration: 100, useNativeDriver: false }).start();
         setFiltersVisible(false);
       }
     } else {
-      if (!filtersVisible) {
-        Animated.timing(filtersAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: false,
-        }).start();
-        Animated.timing(searchAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: false,
-        }).start();
+      // Not a fast fling: behave proportionally to scroll offset for a smooth gradual collapse
+      meta.manualHidden = false;
+      const progress = Math.min(Math.max(offsetY / HIDE_DISTANCE, 0), 1);
+      const value = 1 - progress;
+      // Update animated values directly for smooth response to slow scroll
+      filtersAnim.setValue(value);
+      searchAnim.setValue(value);
+
+      // Only toggle the pointer-events state at the ends to avoid micro-updates
+      if (value <= 0.03 && meta.visible) {
+        meta.visible = false;
+        setFiltersVisible(false);
+      } else if (value >= 0.97 && !meta.visible) {
+        meta.visible = true;
         setFiltersVisible(true);
       }
     }
-  }, [filtersVisible]);
+
+    meta.lastOffset = offsetY;
+    meta.lastTime = now;
+  };
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header wrapper (absolute) so list scrolls under it */}
+  <View style={{ position: 'absolute', top: insets.top, left: 0, right: 0, zIndex: 20 }}>
           {/* Compact Modern Header */}
           <View style={styles.compactHeader}>
         <View style={styles.headerContent}>
@@ -742,34 +769,13 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
         </Animated.View>
       )}
 
-      {/* Animated Search Mode Toggle */}
+      {/* Animated Search Mode Toggle (native-driven opacity + translateY) */}
       <Animated.View
         style={[
           styles.searchModeContainer,
           {
-            opacity: searchAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 1],
-              extrapolate: 'clamp',
-            }),
-            height: searchAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 72],
-              extrapolate: 'clamp',
-            }),
-            marginBottom: searchAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 0],
-            }),
-            paddingVertical: searchAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 12],
-            }),
-            borderBottomWidth: searchAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 1],
-            }),
-            overflow: 'hidden',
+            opacity: scrollY.interpolate({ inputRange: [0, 120], outputRange: [1, 0], extrapolate: 'clamp' }),
+            transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 120], outputRange: [0, -18], extrapolate: 'clamp' }) }],
           },
         ]}
         pointerEvents={filtersVisible ? 'auto' : 'none'}
@@ -804,34 +810,13 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
         </View>
       </Animated.View>
 
-      {/* Animated Search Bar */}
+      {/* Animated Search Bar (native-driven opacity + translateY) */}
       <Animated.View
         style={[
           styles.searchContainer,
-          {
-            opacity: searchAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 1],
-              extrapolate: 'clamp',
-            }),
-            height: searchAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 72],
-              extrapolate: 'clamp',
-            }),
-            marginBottom: searchAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 0],
-            }),
-            paddingVertical: searchAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 16],
-            }),
-            borderBottomWidth: searchAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 1],
-            }),
-            overflow: 'hidden',
+      {
+        opacity: scrollY.interpolate({ inputRange: [0, 110], outputRange: [1, 0], extrapolate: 'clamp' }),
+        transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 110], outputRange: [0, -36], extrapolate: 'clamp' }) }],
           },
         ]}
         pointerEvents={filtersVisible ? 'auto' : 'none'}
@@ -862,28 +847,13 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
         </View>
       </Animated.View>
 
+      {/* Filters row (native-driven opacity + translateY) - hide faster like search bar */}
       <Animated.View 
         style={[
           styles.filtersContainer,
           {
-            opacity: filtersAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 1],
-              extrapolate: 'clamp'
-            }),
-            transform: [{
-              translateY: filtersAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [-40, 0],
-                extrapolate: 'clamp'
-              })
-            }],
-            height: filtersAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 100],
-              extrapolate: 'clamp'
-            }),
-            overflow: 'hidden'
+            opacity: scrollY.interpolate({ inputRange: [0, 110], outputRange: [1, 0], extrapolate: 'clamp' }),
+            transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 110], outputRange: [0, -36], extrapolate: 'clamp' }) }],
           }
         ]}
         pointerEvents={filtersVisible ? 'auto' : 'none'}
@@ -952,21 +922,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
         )}
       </Animated.View>
 
-      <View style={styles.resultsHeader}>
-        <View style={styles.resultsInfo}>
-          <Text style={styles.resultsCount}>
-            {isSearching ? (
-              "Searching..."
-            ) : searchMode === "items" && itemsDisplayData ? 
-              (() => {
-                const uniqueShopIds = Array.from(new Set(itemsDisplayData.map(item => item.shopId).filter(Boolean)));
-                return `${itemsDisplayData.length} item${itemsDisplayData.length !== 1 ? "s" : ""} found in ${uniqueShopIds.length} shop${uniqueShopIds.length !== 1 ? "s" : ""}`;
-              })()
-            : `${shopsDisplayData?.length || 0} shop${shopsDisplayData?.length !== 1 ? "s" : ""} found`
-            }
-          </Text>
-        </View>
-      </View>
+  </View>
 
       {(searchMode === "shops" ? shopsDisplayData.length === 0 : itemsDisplayData.length === 0) ? (
         <Animated.View style={[styles.emptyState, { opacity: fadeAnim }]}> 
@@ -985,7 +941,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
       ) : (
   <Animated.View style={{ flex: 1 }}>
           {searchMode === "shops" ? (
-            <FlatList
+            <Animated.FlatList
               data={shopsDisplayData}
               keyExtractor={(item) => item?._id || ""}
               renderItem={({ item }) => item ? (
@@ -995,26 +951,20 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
                   showInventoryButton={true}
                 />
               ) : null}
-              contentContainerStyle={styles.itemsList}
+              contentContainerStyle={[styles.itemsList, { paddingTop: TOTAL_HEADER_HEIGHT + insets.top }]}
               showsVerticalScrollIndicator={false}
               removeClippedSubviews={true}
-              maxToRenderPerBatch={6}
-              windowSize={5}
-              initialNumToRender={4}
-              onScroll={handleScroll}
-              scrollEventThrottle={32}
-              disableIntervalMomentum={false}
-              decelerationRate="normal"
-              bounces={true}
-              alwaysBounceVertical={false}
-              getItemLayout={(data, index) => ({
-                length: 120, // Approximate height of ShopCard
-                offset: 120 * index,
-                index,
-              })}
+              maxToRenderPerBatch={8}
+              windowSize={8}
+              initialNumToRender={6}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                { useNativeDriver: true, listener: handleScroll }
+              )}
+              scrollEventThrottle={16}
             />
           ) : (
-            <FlatList
+            <Animated.FlatList
               data={itemsDisplayData}
               keyExtractor={(item) => item?._id || ""}
               renderItem={({ item }) => item ? (
@@ -1076,23 +1026,17 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
                   </View>
                 </TouchableOpacity>
               ) : null}
-              contentContainerStyle={styles.shopsList}
+              contentContainerStyle={[styles.shopsList, { paddingTop: TOTAL_HEADER_HEIGHT + insets.top }]}
               showsVerticalScrollIndicator={false}
               removeClippedSubviews={true}
-              maxToRenderPerBatch={8}
-              windowSize={6}
-              initialNumToRender={6}
-              onScroll={handleScroll}
-              scrollEventThrottle={32}
-              disableIntervalMomentum={false}
-              decelerationRate="normal"
-              bounces={true}
-              alwaysBounceVertical={false}
-              getItemLayout={(data, index) => ({
-                length: 140, // Approximate height of item card
-                offset: 140 * index,
-                index,
-              })}
+              maxToRenderPerBatch={10}
+              windowSize={10}
+              initialNumToRender={8}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                { useNativeDriver: true, listener: handleScroll }
+              )}
+              scrollEventThrottle={16}
             />
           )}
         </Animated.View>
