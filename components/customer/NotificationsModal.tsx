@@ -126,35 +126,34 @@ export default function NotificationsModal({
             </View>
           </View>
         </View>
-        <View style={styles.timeAndAction}>
-          <Text style={styles.timeAgo}>{formatTimeAgo(item._creationTime)}</Text>
-          <View style={styles.viewMoreButton}>
-            <Text style={styles.viewMoreText}>View Offer</Text>
-            <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
+        <View style={styles.rightColumn}>
+          <View style={styles.timeContainer}>
+            <Ionicons name="time-outline" size={12} color="#6B7280" />
+            <Text style={styles.timeAgo}>{formatTimeAgo(item._creationTime)}</Text>
+          </View>
+          <View style={styles.viewMoreButtonCorner}>
+            <Text style={styles.viewMoreTextSmall}>Details</Text>
           </View>
         </View>
       </View>
 
       {/* Enhanced Ad Content */}
       <View style={styles.adContentContainer}>
-        {/* Clean Title */}
-        <Text style={styles.adTitle}>
-          {item.advertisement?.title || '🎯 Special Offer'}
-        </Text>
-        
         {/* Discount Badge */}
-        {item.advertisement?.discount && (
+        {item.advertisement?.hasDiscount && item.advertisement?.discountPercentage && (
           <View style={styles.discountBadge}>
             <Text style={styles.discountText}>
-              {item.advertisement.discount}% OFF
+              {item.advertisement.discountPercentage}% OFF
             </Text>
           </View>
         )}
 
-        {/* Message */}
-        <Text style={styles.adDescription} numberOfLines={2}>
-          {item.advertisement?.message}
-        </Text>
+        {/* Message - Enhanced */}
+        <View style={styles.messageContainer}>
+          <Text style={styles.adDescriptionHighlighted} numberOfLines={3}>
+            {item.advertisement?.message}
+          </Text>
+        </View>
 
         {/* Enhanced Media Preview */}
         {(item.advertisement?.imageIds?.length > 0 || item.advertisement?.videoIds?.length > 0) && (
@@ -203,23 +202,21 @@ export default function NotificationsModal({
         </View>
 
         <View style={styles.detailContent}>
-          {/* Clean Detail Title */}
-          <Text style={styles.detailTitle}>
-            {advertisement?.title || 'Special Offer'}
-          </Text>
-          
-          {advertisement?.discount && (
+          {advertisement?.hasDiscount && advertisement?.discountPercentage && (
             <View style={styles.detailDiscountBadge}>
               <Text style={styles.detailDiscountText}>
-                {advertisement.discount}% OFF
+                {advertisement.discountPercentage}% OFF
+                {advertisement.discountText ? ` • ${advertisement.discountText}` : ''}
               </Text>
             </View>
           )}
 
-          {/* Message */}
-          <Text style={styles.detailMessage}>
-            {advertisement?.message}
-          </Text>
+          {/* Enhanced Message */}
+          <View style={styles.detailMessageContainer}>
+            <Text style={styles.detailMessageHighlighted}>
+              {advertisement?.message}
+            </Text>
+          </View>
 
           {/* Images */}
           {advertisement?.imageIds?.length > 0 && (
@@ -824,10 +821,11 @@ const styles = StyleSheet.create({
     borderColor: "#3B82F6",
   },
   premiumShopName: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
     color: "#1F2937",
     marginBottom: 2,
+    letterSpacing: 0.3,
   },
   verifiedBadge: {
     flexDirection: "row",
@@ -842,6 +840,11 @@ const styles = StyleSheet.create({
   timeAndAction: {
     alignItems: "flex-end",
     gap: 4,
+  },
+  rightColumn: {
+    alignItems: "flex-end",
+    gap: 6,
+    minWidth: 80,
   },
   viewMoreButton: {
     flexDirection: "row",
@@ -968,5 +971,51 @@ const styles = StyleSheet.create({
   },
   shopButtonText: {
     flex: 1,
+  },
+  
+  // New Enhanced Styles
+  timeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  viewMoreButtonCorner: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  viewMoreTextSmall: {
+    fontSize: 10,
+    color: "#3B82F6",
+    fontWeight: "600",
+  },
+  messageContainer: {
+    backgroundColor: "#F8FAFC",
+    padding: 12,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#3B82F6",
+    marginVertical: 8,
+  },
+  adDescriptionHighlighted: {
+    fontSize: 15,
+    color: "#1F2937",
+    fontWeight: "500",
+    lineHeight: 22,
+  },
+  detailMessageContainer: {
+    backgroundColor: "#F8FAFC",
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#3B82F6",
+    marginVertical: 12,
+  },
+  detailMessageHighlighted: {
+    fontSize: 16,
+    color: "#1F2937",
+    fontWeight: "500",
+    lineHeight: 24,
   },
 });

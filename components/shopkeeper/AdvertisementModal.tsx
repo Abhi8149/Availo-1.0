@@ -50,6 +50,9 @@ export default function AdvertisementModal({
   const [loading, setLoading] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [hasDiscount, setHasDiscount] = useState(false);
+  const [discountPercentage, setDiscountPercentage] = useState("");
+  const [discountText, setDiscountText] = useState("");
 
   const createAdvertisement = useMutation(api.advertisements.createAdvertisement);
   const updateAdvertisement = useMutation(api.advertisements.updateAdvertisement);
@@ -119,6 +122,9 @@ export default function AdvertisementModal({
       setVideos([]);
       setImageIds(editingAdvertisement.imageIds || []);
       setVideoIds(editingAdvertisement.videoIds || []);
+      setHasDiscount(editingAdvertisement.hasDiscount || false);
+      setDiscountPercentage(editingAdvertisement.discountPercentage ? editingAdvertisement.discountPercentage.toString() : "");
+      setDiscountText(editingAdvertisement.discountText || "");
       console.log('Editing Advertisement:', editingAdvertisement);
     } else {
       resetForm();
@@ -134,6 +140,9 @@ export default function AdvertisementModal({
     setExistingImageUrls([]);
     setExistingVideoUrls([]);
     setFullscreenImage(null);
+    setHasDiscount(false);
+    setDiscountPercentage("");
+    setDiscountText("");
   };
 
   const requestPermissions = async () => {
@@ -432,6 +441,9 @@ export default function AdvertisementModal({
           message: message.trim(),
           imageIds: finalImageIds.length > 0 ? finalImageIds : undefined,
           videoIds: finalVideoIds.length > 0 ? finalVideoIds : undefined,
+          hasDiscount: hasDiscount,
+          discountPercentage: hasDiscount && discountPercentage ? parseInt(discountPercentage) : undefined,
+          discountText: hasDiscount && discountText.trim() ? discountText.trim() : undefined,
         });
         Alert.alert("Success", "Advertisement updated successfully!");
         resetForm();
@@ -444,10 +456,13 @@ export default function AdvertisementModal({
           message: message.trim(),
           imageIds: finalImageIds.length > 0 ? finalImageIds : undefined,
           videoIds: finalVideoIds.length > 0 ? finalVideoIds : undefined,
+          hasDiscount: hasDiscount,
+          discountPercentage: hasDiscount && discountPercentage ? parseInt(discountPercentage) : undefined,
+          discountText: hasDiscount && discountText.trim() ? discountText.trim() : undefined,
         });
 
         // Send notifications immediately after creating new advertisement
-        const notificationCount = await sendNotifications({
+        const notificationResult = await sendNotifications({
           advertisementId,
           shopLat: shopLocation.lat,
           shopLng: shopLocation.lng,
@@ -456,7 +471,7 @@ export default function AdvertisementModal({
 
         Alert.alert(
           "Success", 
-          `Advertisement created and sent to ${notificationCount} nearby users!`
+          `Advertisement created and sent to ${notificationResult.sent} nearby users!`
         );
         resetForm();
         onClose();
@@ -480,7 +495,7 @@ export default function AdvertisementModal({
       // For editing mode - just send notifications
       setLoading(true);
       try {
-        const notificationCount = await sendNotifications({
+        const notificationResult = await sendNotifications({
           advertisementId: editingAdvertisement._id,
           shopLat: shopLocation.lat,
           shopLng: shopLocation.lng,
@@ -489,7 +504,7 @@ export default function AdvertisementModal({
 
         Alert.alert(
           "Success",
-          `Notification sent to ${notificationCount} nearby users!`
+          `Notification sent to ${notificationResult.sent} nearby users!${notificationResult.skipped > 0 ? ` (${notificationResult.skipped} users already notified)` : ''}`
         );
       } catch (error) {
         Alert.alert("Error", "Failed to send notifications");
@@ -729,6 +744,73 @@ export default function AdvertisementModal({
                       ))}
                     </View>
                   </ScrollView>
+                )}
+              </View>
+
+              {/* Discount Section */}
+              <View style={styles.discountSection}>
+                <View style={styles.discountHeader}>
+                  <Text style={styles.label}>Special Discount (Optional)</Text>
+                  <TouchableOpacity
+                    style={styles.discountToggle}
+                    onPress={() => setHasDiscount(!hasDiscount)}
+                  >
+                    <View style={[styles.toggleCircle, hasDiscount && styles.toggleActive]}>
+                      {hasDiscount && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+                    </View>
+                    <Text style={[styles.toggleText, hasDiscount && styles.toggleTextActive]}>
+                      {hasDiscount ? "Discount Enabled" : "Enable Discount"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {hasDiscount && (
+                  <View style={styles.discountForm}>
+                    <View style={styles.discountInputRow}>
+                      <View style={styles.percentageInput}>
+                        <Text style={styles.discountLabel}>Discount %</Text>
+                        <TextInput
+                          style={styles.percentageField}
+                          value={discountPercentage}
+                          onChangeText={(text) => {
+                            // Only allow numbers and limit to 99
+                            const numericText = text.replace(/[^0-9]/g, '');
+                            if (parseInt(numericText) <= 99 || numericText === '') {
+                              setDiscountPercentage(numericText);
+                            }
+                          }}
+                          placeholder="10"
+                          keyboardType="numeric"
+                          maxLength={2}
+                        />
+                        <Text style={styles.percentSymbol}>%</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.discountInputGroup}>
+                      <Text style={styles.discountLabel}>Discount Description (Optional)</Text>
+                      <TextInput
+                        style={styles.discountTextInput}
+                        value={discountText}
+                        onChangeText={setDiscountText}
+                        placeholder="e.g., 'Buy 2 Get 1 Free', 'Flash Sale', 'Limited Time Offer'"
+                        multiline
+                        numberOfLines={2}
+                        textAlignVertical="top"
+                      />
+                    </View>
+
+                    <View style={styles.discountPreview}>
+                      <Text style={styles.previewLabel}>Preview:</Text>
+                      <View style={styles.previewBadge}>
+                        <Ionicons name="pricetag" size={16} color="#FFFFFF" />
+                        <Text style={styles.previewText}>
+                          {discountPercentage ? `${discountPercentage}% OFF` : 'XX% OFF'}
+                          {discountText ? ` • ${discountText}` : ''}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
                 )}
               </View>
             </View>
@@ -1090,4 +1172,119 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     textAlign: "center",
-  },});
+  },
+
+  // Discount Section Styles
+  discountSection: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  discountHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  discountToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  toggleCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toggleActive: {
+    backgroundColor: "#10B981",
+  },
+  toggleText: {
+    fontSize: 14,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  toggleTextActive: {
+    color: "#10B981",
+    fontWeight: "600",
+  },
+  discountForm: {
+    gap: 16,
+  },
+  discountInputRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  percentageInput: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  discountLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  percentageField: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+    textAlign: "center",
+  },
+  percentSymbol: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  discountInputGroup: {
+    gap: 8,
+  },
+  discountTextInput: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    minHeight: 60,
+  },
+  discountPreview: {
+    gap: 8,
+    alignItems: "flex-start",
+  },
+  previewLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6B7280",
+    textTransform: "uppercase",
+  },
+  previewBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  previewText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+});

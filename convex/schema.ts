@@ -7,7 +7,7 @@ export default defineSchema({
     email: v.string(),
     phone: v.optional(v.string()),
     photoUri: v.optional(v.string()),
-    password: v.optional(v.string()),
+    password: v.optional(v.string()), // Optional for backward compatibility
     role: v.union(v.literal("shopkeeper"), v.literal("customer")),
     createdAt: v.number(),
   }).index("by_email", ["email"]),
@@ -71,6 +71,9 @@ export default defineSchema({
     notificationsSent: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
+    hasDiscount: v.optional(v.boolean()),
+    discountPercentage: v.optional(v.number()),
+    discountText: v.optional(v.string()),
   })
     .index("by_shop", ["shopId"])
     .index("by_owner", ["shopOwnerId"])
@@ -86,7 +89,8 @@ export default defineSchema({
   })
     .index("by_recipient", ["recipientUserId"])
     .index("by_advertisement", ["advertisementId"])
-    .index("by_shop", ["shopId"]),
+    .index("by_shop", ["shopId"])
+    .index("by_advertisement_recipient", ["advertisementId", "recipientUserId"]),
 
   verificationCodes: defineTable({
     userId: v.string(),
@@ -97,4 +101,14 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_email", ["email"]),
+
+  passwordResetCodes: defineTable({
+    email: v.string(),
+    code: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    used: v.boolean(),
+  })
+    .index("by_email", ["email"])
+    .index("by_email_code", ["email", "code"]),
 });

@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { saveAuthData, getAuthData, clearAuthData } from "../utils/auth";
 import LoginScreen from "../components/auth/LoginScreen";
 import RegisterScreen from "../components/auth/RegisterScreen";
+import ForgotPasswordScreen from "../components/auth/ForgotPasswordScreen";
 import ShopkeeperDashboard from "../components/shopkeeper/ShopkeeperDashboard";
 import CustomerHome from "../components/customer/CustomerHome";
 import { useQuery, useMutation } from "convex/react";
@@ -12,7 +13,7 @@ import { Id } from "../convex/_generated/dataModel";
 
 export default function Index() {
   const [currentUser, setCurrentUser] = useState<Id<"users"> | null>(null);
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authMode, setAuthMode] = useState<"login" | "register" | "forgot-password">("login");
   const [currentRole, setCurrentRole] = useState<"shopkeeper" | "customer" | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
@@ -141,11 +142,17 @@ export default function Index() {
         <LoginScreen 
           onAuthSuccess={handleAuthSuccess}
           onSwitchToRegister={() => setAuthMode("register")}
+          onForgotPassword={() => setAuthMode("forgot-password")}
         />
-      ) : (
+      ) : authMode === "register" ? (
         <RegisterScreen 
           onAuthSuccess={handleAuthSuccess}
           onSwitchToLogin={() => setAuthMode("login")}
+        />
+      ) : (
+        <ForgotPasswordScreen 
+          onBackToLogin={() => setAuthMode("login")}
+          onAuthSuccess={handleAuthSuccess}
         />
       )}
     </SafeAreaView>
