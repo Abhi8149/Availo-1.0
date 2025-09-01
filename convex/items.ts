@@ -11,6 +11,8 @@ export const createItem = mutation({
     category: v.optional(v.string()),
     imageId: v.optional(v.id("_storage")),
     offer: v.optional(v.string()),
+    barcode: v.optional(v.string()),
+    brand: v.optional(v.string()),
     inStock: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -23,6 +25,8 @@ export const createItem = mutation({
       category: args.category,
       imageId: args.imageId,
       offer: args.offer,
+      barcode: args.barcode,
+      brand: args.brand,
       inStock: args.inStock,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -52,6 +56,8 @@ export const updateItem = mutation({
     category: v.optional(v.string()),
     imageId: v.optional(v.id("_storage")),
     offer: v.optional(v.string()),
+    barcode: v.optional(v.string()),
+    brand: v.optional(v.string()),
     inStock: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -65,6 +71,8 @@ export const updateItem = mutation({
     if (args.category !== undefined) updates.category = args.category;
     if (args.imageId !== undefined) updates.imageId = args.imageId;
     if (args.offer !== undefined) updates.offer = args.offer;
+    if (args.barcode !== undefined) updates.barcode = args.barcode;
+    if (args.brand !== undefined) updates.brand = args.brand;
     if (args.inStock !== undefined) updates.inStock = args.inStock;
     await ctx.db.patch(args.itemId, updates);
   },
@@ -135,7 +143,9 @@ export const getItemsWithShopInfo = query({
       items = items.filter(item => 
         item.name.toLowerCase().includes(searchLower) ||
         (item.description && item.description.toLowerCase().includes(searchLower)) ||
-        (item.category && item.category.toLowerCase().includes(searchLower))
+        (item.category && item.category.toLowerCase().includes(searchLower)) ||
+        (item.barcode && item.barcode.toLowerCase().includes(searchLower)) ||
+        (item.brand && item.brand.toLowerCase().includes(searchLower))
       );
     }
 
@@ -151,6 +161,33 @@ export const getItemsWithShopInfo = query({
     );
 
     return itemsWithShopInfo;
+  },
+});
+
+export const getItemByBarcode = query({
+  args: { barcode: v.string() },
+  handler: async (ctx, args) => {
+    if (!args.barcode.trim()) {
+      return null;
+    }
+    
+    const items = await ctx.db
+      .query("items")
+      .withIndex("by_barcode", (q) => q.eq("barcode", args.barcode))
+      .collect();
+    
+    if (items.length === 0) {
+      return null;
+    }
+    
+    // Return the first item found with shop info
+    const item = items[0];
+    const shop = await ctx.db.get(item.shopId);
+    
+    return {
+      ...item,
+      shop,
+    };
   },
 });
 

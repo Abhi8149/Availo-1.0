@@ -54,12 +54,15 @@ export default defineSchema({
     imageId: v.optional(v.id("_storage")),
     inStock: v.boolean(),
     offer: v.optional(v.string()),
+    barcode: v.optional(v.string()),
+    brand: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_shop", ["shopId"])
     .index("by_shop_and_stock", ["shopId", "inStock"])
-    .index("by_name", ["name"]),
+    .index("by_name", ["name"])
+    .index("by_barcode", ["barcode"]),
 
   advertisements: defineTable({
     shopId: v.id("shops"),

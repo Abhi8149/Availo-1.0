@@ -127,6 +127,8 @@ export const deleteUserAccount = mutation({
       .withIndex("by_owner", (q) => q.eq("ownerUid", args.userId))
       .collect();
     
+    const deletedAdvertisementIds: any[] = [];
+    
     for (const shop of userShops) {
       // Delete all items in each shop
       const shopItems = await ctx.db
@@ -138,12 +140,16 @@ export const deleteUserAccount = mutation({
         await ctx.db.delete(item._id);
       }
       
-      // Delete all advertisements for each shop
+      // Get all advertisements for this shop (to track for notification cleanup)
       const shopAds = await ctx.db
         .query("advertisements")
         .withIndex("by_shop", (q) => q.eq("shopId", shop._id))
         .collect();
       
+      // Collect advertisement IDs for notification cleanup
+      deletedAdvertisementIds.push(...shopAds.map(ad => ad._id));
+      
+      // Delete all advertisements for each shop
       for (const ad of shopAds) {
         await ctx.db.delete(ad._id);
       }
@@ -152,7 +158,20 @@ export const deleteUserAccount = mutation({
       await ctx.db.delete(shop._id);
     }
 
-    // 2. Delete user's notifications
+    // 2. Delete ALL notifications related to this shopkeeper's advertisements
+    // This includes notifications sent to OTHER customers about these advertisements
+    for (const advertisementId of deletedAdvertisementIds) {
+      const adNotifications = await ctx.db
+        .query("notifications")
+        .withIndex("by_advertisement", (q) => q.eq("advertisementId", advertisementId))
+        .collect();
+      
+      for (const notification of adNotifications) {
+        await ctx.db.delete(notification._id);
+      }
+    }
+
+    // 3. Delete user's notifications (where this user was the recipient)
     const userNotifications = await ctx.db
       .query("notifications")
       .withIndex("by_recipient", (q) => q.eq("recipientUserId", args.userId))
@@ -162,7 +181,7 @@ export const deleteUserAccount = mutation({
       await ctx.db.delete(notification._id);
     }
 
-    // 3. Delete user's verification codes
+    // 4. Delete user's verification codes
     const userCodes = await ctx.db
       .query("verificationCodes")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId.toString()))
@@ -172,7 +191,7 @@ export const deleteUserAccount = mutation({
       await ctx.db.delete(code._id);
     }
 
-    // 4. Delete user's password reset codes
+    // 5. Delete user's password reset codes
     const userResetCodes = await ctx.db
       .query("passwordResetCodes")
       .filter((q) => q.eq(q.field("email"), user.email))
@@ -182,9 +201,21 @@ export const deleteUserAccount = mutation({
       await ctx.db.delete(resetCode._id);
     }
 
-    // 5. Finally, delete the user
+    // 6. Clean up any remaining notifications by shop (double-check cleanup)
+    for (const shop of userShops) {
+      const remainingShopNotifications = await ctx.db
+        .query("notifications")
+        .withIndex("by_shop", (q) => q.eq("shopId", shop._id))
+        .collect();
+      
+      for (const notification of remainingShopNotifications) {
+        await ctx.db.delete(notification._id);
+      }
+    }
+
+    // 7. Finally, delete the user
     await ctx.db.delete(args.userId);
 
-    return { success: true, message: "Account deleted successfully" };
+    return { success: true, message: "Account and all related data deleted successfully" };
   },
 });
