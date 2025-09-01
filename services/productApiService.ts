@@ -8,7 +8,7 @@ export interface ProductData {
   category?: string;
   description?: string;
   imageUrl?: string;
-  source: 'local' | 'openfoodfacts' | 'openbeautyfacts' | 'openproductsfacts' | 'googlebooks' | 'openlibrary' | 'manual';
+  source: 'local' | 'openfoodfacts' | 'openbeautyfacts' | 'openproductsfacts' | 'openfda' | 'upcitemdb' | 'freewebapi' | 'goupc' | 'googlebooks' | 'openlibrary' | 'manual';
   found: boolean;
 }
 
@@ -105,6 +105,10 @@ export class ProductApiService {
       { name: 'openfoodfacts', fn: this.checkOpenFoodFacts },
       { name: 'openbeautyfacts', fn: this.checkOpenBeautyFacts },
       { name: 'openproductsfacts', fn: this.checkOpenProductFacts },
+      { name: 'openfda', fn: this.checkOpenFDA },
+      { name: 'upcitemdb', fn: this.checkUPCItemDB },
+      { name: 'freewebapi', fn: this.checkFreeWebAPI },
+      { name: 'goupc', fn: this.checkGoUPC },
       { name: 'googlebooks', fn: this.checkGoogleBooks },
       { name: 'openlibrary', fn: this.checkOpenLibrary },
     ];
@@ -131,6 +135,11 @@ export class ProductApiService {
   private static async checkOpenFoodFacts(barcode: string): Promise<ProductData> {
     try {
       const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+      
+      if (!response.ok) {
+        return { name: '', source: 'openfoodfacts', found: false };
+      }
+      
       const data = await response.json();
       
       if (data.status === 1 && data.product) {
@@ -148,7 +157,8 @@ export class ProductApiService {
       
       return { name: '', source: 'openfoodfacts', found: false };
     } catch (error) {
-      throw new Error(`Open Food Facts API error: ${error}`);
+      console.log(`Open Food Facts error (skipping): ${error}`);
+      return { name: '', source: 'openfoodfacts', found: false };
     }
   }
 
@@ -158,6 +168,11 @@ export class ProductApiService {
   private static async checkOpenBeautyFacts(barcode: string): Promise<ProductData> {
     try {
       const response = await fetch(`https://world.openbeautyfacts.org/api/v2/product/${barcode}.json`);
+      
+      if (!response.ok) {
+        return { name: '', source: 'openbeautyfacts', found: false };
+      }
+      
       const data = await response.json();
       
       if (data.status === 1 && data.product) {
@@ -175,7 +190,8 @@ export class ProductApiService {
       
       return { name: '', source: 'openbeautyfacts', found: false };
     } catch (error) {
-      throw new Error(`Open Beauty Facts API error: ${error}`);
+      console.log(`Open Beauty Facts error (skipping): ${error}`);
+      return { name: '', source: 'openbeautyfacts', found: false };
     }
   }
 
@@ -185,6 +201,11 @@ export class ProductApiService {
   private static async checkOpenProductFacts(barcode: string): Promise<ProductData> {
     try {
       const response = await fetch(`https://world.openproductsfacts.org/api/v2/product/${barcode}.json`);
+      
+      if (!response.ok) {
+        return { name: '', source: 'openproductsfacts', found: false };
+      }
+      
       const data = await response.json();
       
       if (data.status === 1 && data.product) {
@@ -202,7 +223,8 @@ export class ProductApiService {
       
       return { name: '', source: 'openproductsfacts', found: false };
     } catch (error) {
-      throw new Error(`Open Product Facts API error: ${error}`);
+      console.log(`Open Product Facts error (skipping): ${error}`);
+      return { name: '', source: 'openproductsfacts', found: false };
     }
   }
 
@@ -212,6 +234,11 @@ export class ProductApiService {
   private static async checkGoogleBooks(barcode: string): Promise<ProductData> {
     try {
       const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${barcode}`);
+      
+      if (!response.ok) {
+        return { name: '', source: 'googlebooks', found: false };
+      }
+      
       const data = await response.json();
       
       if (data.items && data.items.length > 0) {
@@ -229,7 +256,8 @@ export class ProductApiService {
       
       return { name: '', source: 'googlebooks', found: false };
     } catch (error) {
-      throw new Error(`Google Books API error: ${error}`);
+      console.log(`Google Books error (skipping): ${error}`);
+      return { name: '', source: 'googlebooks', found: false };
     }
   }
 
@@ -239,6 +267,11 @@ export class ProductApiService {
   private static async checkOpenLibrary(barcode: string): Promise<ProductData> {
     try {
       const response = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${barcode}&format=json&jscmd=data`);
+      
+      if (!response.ok) {
+        return { name: '', source: 'openlibrary', found: false };
+      }
+      
       const data = await response.json();
       
       const bookKey = `ISBN:${barcode}`;
@@ -257,7 +290,174 @@ export class ProductApiService {
       
       return { name: '', source: 'openlibrary', found: false };
     } catch (error) {
-      throw new Error(`Open Library API error: ${error}`);
+      console.log(`Open Library error (skipping): ${error}`);
+      return { name: '', source: 'openlibrary', found: false };
+    }
+  }
+
+  /**
+   * OpenFDA API (for medicines/drugs)
+   */
+  private static async checkOpenFDA(barcode: string): Promise<ProductData> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch(`https://api.fda.gov/drug/label.json?search=openfda.package_ndc:${barcode}&limit=1`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        return { name: '', source: 'openfda', found: false };
+      }
+      
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        const drug = data.results[0];
+        return {
+          name: drug.openfda?.brand_name?.[0] || drug.openfda?.generic_name?.[0] || '',
+          brand: drug.openfda?.manufacturer_name?.[0] || '',
+          category: 'medicine',
+          description: drug.description?.[0] || drug.indications_and_usage?.[0] || '',
+          source: 'openfda',
+          found: true
+        };
+      }
+      
+      return { name: '', source: 'openfda', found: false };
+    } catch (error) {
+      console.log(`OpenFDA error (skipping): ${error}`);
+      return { name: '', source: 'openfda', found: false };
+    }
+  }
+
+  /**
+   * UPCitemdb API (general retail, free tier)
+   */
+  private static async checkUPCItemDB(barcode: string): Promise<ProductData> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        return { name: '', source: 'upcitemdb', found: false };
+      }
+      
+      const data = await response.json();
+      
+      if (data.code === "OK" && data.items && data.items.length > 0) {
+        const item = data.items[0];
+        return {
+          name: item.title || '',
+          brand: item.brand || '',
+          category: item.category || 'retail',
+          description: item.description || '',
+          imageUrl: item.images && item.images.length > 0 ? item.images[0] : undefined,
+          source: 'upcitemdb',
+          found: true
+        };
+      }
+      
+      return { name: '', source: 'upcitemdb', found: false };
+    } catch (error) {
+      console.log(`UPCitemdb error (skipping): ${error}`);
+      return { name: '', source: 'upcitemdb', found: false };
+    }
+  }
+
+  /**
+   * FreeWebApi Barcode Lookup (general retail, free)
+   */
+  private static async checkFreeWebAPI(barcode: string): Promise<ProductData> {
+    try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      const response = await fetch(`https://api.freewebapi.com/barcode-lookup?code=${barcode}`, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; BarcodeScanner/1.0)'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        console.log(`FreeWebAPI returned status: ${response.status}`);
+        return { name: '', source: 'freewebapi', found: false };
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.product) {
+        const product = data.product;
+        return {
+          name: product.name || product.title || '',
+          brand: product.brand || product.manufacturer || '',
+          category: product.category || 'retail',
+          description: product.description || '',
+          imageUrl: product.image_url || product.image,
+          source: 'freewebapi',
+          found: true
+        };
+      }
+      
+      return { name: '', source: 'freewebapi', found: false };
+    } catch (error) {
+      console.log(`FreeWebAPI error (skipping): ${error}`);
+      // Return false instead of throwing to continue with other APIs
+      return { name: '', source: 'freewebapi', found: false };
+    }
+  }
+
+  /**
+   * Go-UPC API (trial, general retail)
+   */
+  private static async checkGoUPC(barcode: string): Promise<ProductData> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch(`https://go-upc.com/api/v1/code/${barcode}`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        return { name: '', source: 'goupc', found: false };
+      }
+      
+      const data = await response.json();
+      
+      if (data.codeType && data.product) {
+        const product = data.product;
+        return {
+          name: product.name || '',
+          brand: product.brand || '',
+          category: product.category || 'retail',
+          description: product.description || '',
+          imageUrl: product.imageUrl,
+          source: 'goupc',
+          found: true
+        };
+      }
+      
+      return { name: '', source: 'goupc', found: false };
+    } catch (error) {
+      console.log(`Go-UPC error (skipping): ${error}`);
+      return { name: '', source: 'goupc', found: false };
     }
   }
 
