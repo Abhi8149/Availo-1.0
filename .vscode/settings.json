@@ -1,0 +1,37 @@
+{
+  "json.schemas": [
+    {
+      "fileMatch": ["package.json"],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "version": { "type": "string" },
+          "description": { "type": "string" },
+          "main": { "type": "string" },
+          "scripts": {
+            "type": "object",
+            "patternProperties": {
+              ".*": { "type": "string" }
+            }
+          },
+          "dependencies": {
+            "type": "object",
+            "patternProperties": {
+              ".*": { "type": "string" }
+            }
+          },
+          "devDependencies": {
+            "type": "object",
+            "patternProperties": {
+              ".*": { "type": "string" }
+            }
+          },
+          "expo": { "type": "object" },
+          "private": { "type": "boolean" }
+        }
+      }
+    }
+  ],
+  "json.schemaDownload.enable": false
+}
