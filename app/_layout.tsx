@@ -1,4 +1,6 @@
 import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { Stack } from "expo-router";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
 
@@ -19,9 +21,13 @@ const convex = new ConvexReactClient(getConvexUrl(), {
 export default function RootLayout() {
   return (
     <ErrorBoundary>
-      <ConvexProvider client={convex}>
-        <Stack screenOptions={{ headerShown: false }} />
-      </ConvexProvider>
+      {/* StatusBar always visible, matching notification modal */}
+      <StatusBar style="dark" backgroundColor="#FAFAFA" translucent={false} />
+      <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+        <ConvexProvider client={convex}>
+          <Stack screenOptions={{ headerShown: false }} />
+        </ConvexProvider>
+      </View>
     </ErrorBoundary>
   );
 }
