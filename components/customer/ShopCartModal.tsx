@@ -25,6 +25,8 @@ interface ShopCartModalProps {
   onUpdateQuantity?: (itemId: Id<"items">, newQuantity: number) => void;
   onIncreaseQuantity?: (itemId: Id<"items">) => void;
   onDecreaseQuantity?: (itemId: Id<"items">) => void;
+  onViewOrders?: () => void; // New prop to open orders modal
+  hasOrders?: boolean; // New prop to check if customer has any orders
   hasDelivery?: boolean;
 }
 
@@ -39,6 +41,8 @@ export default function ShopCartModal({
   onUpdateQuantity,
   onIncreaseQuantity,
   onDecreaseQuantity,
+  onViewOrders,
+  hasOrders = false,
   hasDelivery = true,
 }: ShopCartModalProps) {
   // Filter items for this shop only
@@ -82,6 +86,18 @@ export default function ShopCartModal({
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.shopName}>{shopName}</Text>
+          
+          {/* View Your Orders Button */}
+          {onViewOrders && hasOrders && (
+            <TouchableOpacity 
+              style={styles.viewOrdersButton}
+              onPress={onViewOrders}
+            >
+              <Ionicons name="receipt-outline" size={20} color="#2563EB" />
+              <Text style={styles.viewOrdersButtonText}>View Your Orders</Text>
+              <Ionicons name="chevron-forward" size={16} color="#2563EB" />
+            </TouchableOpacity>
+          )}
           
           {shopCartItems.length > 0 ? (
             <>
@@ -220,6 +236,25 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#FFFFFF',
     marginBottom: 8,
+  },
+  viewOrdersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EFF6FF',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  viewOrdersButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2563EB',
+    marginLeft: 8,
   },
   cartItem: {
     flexDirection: 'row',

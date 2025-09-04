@@ -608,10 +608,11 @@ export default function ItemDetailsModal({
                       style={[
                         styles.cartButton,
                         isInCart && styles.cartButtonAdded,
-                        !item.inStock && styles.cartButtonDisabled
+                        !item.inStock && styles.cartButtonDisabled,
+                        isInCart && styles.cartButtonDisabled // Disable when already in cart
                       ]}
-                      onPress={() => item.inStock && onAddToCart(item)}
-                      disabled={!item.inStock}
+                      onPress={() => !isInCart && item.inStock && onAddToCart(item)}
+                      disabled={!item.inStock || isInCart} // Disable when out of stock OR already in cart
                     >
                       <Ionicons 
                         name={isInCart ? "cart" : "cart-outline"} 

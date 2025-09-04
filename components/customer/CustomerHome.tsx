@@ -27,6 +27,7 @@ import ShopMapModal from "./ShopMapModal";
 import ShopInventoryModal from "./ShopInventoryModal";
 import CustomerSidebar from "./CustomerSidebar";
 import NotificationsModal from "./NotificationsModal";
+import CustomerOrdersModal from "./CustomerOrdersModal";
 import { User, CartItem } from "../../types/interfaces";
 
 interface CustomerHomeProps {
@@ -230,6 +231,10 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
     );
   }, [user, userLocation, createOrder]);
 
+  const handleViewOrders = useCallback(() => {
+    setOrdersVisible(true);
+  }, []);
+
   // Load wishlist from AsyncStorage on mount
   useEffect(() => {
     (async () => {
@@ -282,6 +287,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   const [showMap, setShowMap] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [ordersVisible, setOrdersVisible] = useState(false);
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -635,6 +641,16 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
     category: searchMode === "items" && selectedCategory !== "all" ? selectedCategory : undefined,
     // Show all items regardless of stock status
   });
+
+  // Query to check if user has any orders (to show/hide "View Orders" button)
+  const userOrders = useQuery(api.orders.getCustomerOrders, { 
+    customerId: user._id 
+  });
+
+  // Check if user has any orders to determine if "View Orders" button should be shown
+  const hasOrders = useMemo(() => {
+    return userOrders && userOrders.length > 0;
+  }, [userOrders]);
 
   // Memoize display data for FlatList
   const shopsDisplayData = useMemo(() => {
@@ -1177,6 +1193,8 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
           }}
           onAddToWishlist={handleAddToWishlist}
           isInWishlist={wishlistItems.some(wishlistItem => wishlistItem._id === selectedItem._id)}
+          onAddToCart={handleAddToCart}
+          isInCart={cartItems.some(cartItem => cartItem._id === selectedItem._id)}
         />
       )}
 
@@ -1204,6 +1222,8 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
           onIncreaseQuantity={handleIncreaseQuantity}
           onDecreaseQuantity={handleDecreaseQuantity}
           onBookItems={handleBookItems}
+          onViewOrders={handleViewOrders}
+          hasOrders={hasOrders}
         />
       )}
 
@@ -1212,6 +1232,12 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
         onClose={() => setNotificationsVisible(false)}
         userId={user._id}
         onViewShop={handleViewShop}
+      />
+
+      <CustomerOrdersModal
+        visible={ordersVisible}
+        onClose={() => setOrdersVisible(false)}
+        userId={user._id}
       />
 
       <CustomerSidebar

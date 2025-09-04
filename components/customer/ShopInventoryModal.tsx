@@ -42,6 +42,8 @@ interface ShopInventoryModalProps {
   onIncreaseQuantity?: (itemId: Id<"items">) => void;
   onDecreaseQuantity?: (itemId: Id<"items">) => void;
   onBookItems?: (items: CartItem[]) => void;
+  onViewOrders?: () => void; // New prop for viewing orders
+  hasOrders?: boolean; // New prop to check if customer has orders
 }
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -62,7 +64,9 @@ export default function ShopInventoryModal({
   onUpdateQuantity,
   onIncreaseQuantity,
   onDecreaseQuantity,
-  onBookItems
+  onBookItems,
+  onViewOrders,
+  hasOrders = false
 }: ShopInventoryModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -846,6 +850,8 @@ export default function ShopInventoryModal({
         onUpdateQuantity={onUpdateQuantity}
         onIncreaseQuantity={onIncreaseQuantity}
         onDecreaseQuantity={onDecreaseQuantity}
+        onViewOrders={onViewOrders}
+        hasOrders={hasOrders}
         hasDelivery={shop.hasDelivery}
       />
     </>
