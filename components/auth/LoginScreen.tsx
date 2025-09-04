@@ -14,6 +14,8 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { PasswordInput } from "../common/PasswordInput";
+import { OneSignalService } from "../../services/oneSignalService";
+import { LocationService } from "../../services/locationService";
 
 interface LoginScreenProps {
   onAuthSuccess: (userId: Id<"users">) => void;
@@ -27,6 +29,9 @@ export default function LoginScreen({ onAuthSuccess, onSwitchToRegister, onForgo
   const [loading, setLoading] = useState(false);
 
   const authenticateUser = useMutation(api.users.authenticateUser);
+  const updateUserProfile = useMutation(api.users.updateUserProfile);
+  const updateUserLocation = useMutation(api.users.updateUserLocation);
+  const updateOneSignalPlayerId = useMutation(api.users.updateOneSignalPlayerId);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -42,6 +47,59 @@ export default function LoginScreen({ onAuthSuccess, onSwitchToRegister, onForgo
       });
       
       if (user) {
+        // Update user location and OneSignal data
+        try {
+          console.log('🔄 [LOGIN] Getting OneSignal player ID...');
+          // Get OneSignal player ID
+          const playerId = await OneSignalService.getPlayerId();
+          console.log('📱 [LOGIN] OneSignal Player ID:', playerId);
+          
+          // Get user location (only for customers)
+          let userLocation = null;
+          if (user.role === "customer" || user.role==='shopkeeper') {
+            console.log('📍 [LOGIN] Getting user location...');
+            userLocation = await LocationService.getCurrentLocation();
+            console.log('🗺️ [LOGIN] User Location:', userLocation);
+            if (userLocation) {
+              // Update OneSignal with location
+              OneSignalService.setUserLocation(userLocation.lat, userLocation.lng);
+              console.log('✅ [LOGIN] OneSignal location updated');
+            }
+          }
+
+          // Set OneSignal tags
+          if (playerId) {
+            console.log('🏷️ [LOGIN] Setting OneSignal tags...');
+            OneSignalService.setUserTags({
+              userId: user._id.toString(),
+              role: user.role,
+              email: user.email,
+              name: user.name,
+            });
+            console.log('✅ [LOGIN] OneSignal tags set');
+          } else {
+            console.log('⚠️ [LOGIN] No OneSignal player ID available');
+          }
+
+          // Update user profile with location and OneSignal data
+          console.log('💾 [LOGIN] Updating user profile with location and OneSignal data...');
+          await updateUserProfile({
+            userId: user._id,
+            location: userLocation ? {
+              lat: userLocation.lat,
+              lng: userLocation.lng,
+              address: userLocation.address,
+            } : undefined,
+            oneSignalPlayerId: playerId || undefined,
+            pushNotificationsEnabled: !!playerId,
+          });
+          console.log('✅ [LOGIN] User profile updated successfully');
+
+        } catch (error) {
+          console.error('❌ [LOGIN] Error updating user location/notifications:', error);
+          // Don't fail the login process for this
+        }
+
         onAuthSuccess(user._id);
       }
     } catch (error: any) {

@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.shopstatus.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to location to help you add your shop's address.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to help you add your shop's address.",
@@ -33,7 +34,10 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.WAKE_LOCK",
+        "android.permission.VIBRATE",
+        "com.google.android.c2dm.permission.RECEIVE"
       ]
     },
     "web": {
@@ -42,6 +46,13 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "development",
+          "devTeam": "47J7RWYXLY"
+        }
+      ],
       "expo-router",
       "expo-image-picker",
       "expo-location",
@@ -60,17 +71,35 @@
     },
     "extra": {
       "EXPO_PUBLIC_LOCATIONIQ_API_KEY": "pk.2e5d70a914f544ff9b993af9ac29d478",
+      "EXPO_PUBLIC_ONESIGNAL_APP_ID": "3de46348-ec6d-4e68-8a4c-81536e45c73c",
       "router": {},
       "eas": {
-        "projectId": "e02ed124-8f93-40db-8712-66a003b275ff"
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "OneSignalNotificationServiceExtension",
+                  "bundleIdentifier": "com.shopstatus.app.OneSignalNotificationServiceExtension",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.shopstatus.app.onesignal"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "18433df7-96c1-40a5-a642-08b5a48e47ff"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/e02ed124-8f93-40db-8712-66a003b275ff"
+      "url": "https://u.expo.dev/18433df7-96c1-40a5-a642-08b5a48e47ff"
     },
-    "owner": "piyush8009"
+    "owner": "abhijyoti"
   }
 }

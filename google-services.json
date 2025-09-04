@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1033771893745",
+    "firebase_url": "https://abhinav-5c0b6.firebaseio.com",
+    "project_id": "abhinav-5c0b6",
+    "storage_bucket": "abhinav-5c0b6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1033771893745:android:fd9e6f465ba706ee71ba50",
+        "android_client_info": {
+          "package_name": "com.shopstatus.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAGG1dnQawLZUeazaBii6MmSmstac5sGdI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

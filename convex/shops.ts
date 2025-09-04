@@ -209,3 +209,10 @@ export const deleteShop = mutation({
     await ctx.db.delete(args.shopId);
   },
 });
+
+export const getShop = query({
+  args: { shopId: v.id("shops") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.shopId);
+  },
+});

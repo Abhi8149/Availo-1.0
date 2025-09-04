@@ -18,7 +18,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { Image } from "expo-image";
 import { Video, Audio } from "expo-av";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery, useAction } from "convex/react";
 import { useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -58,6 +58,7 @@ export default function AdvertisementModal({
   const updateAdvertisement = useMutation(api.advertisements.updateAdvertisement);
   const deleteAdvertisement = useMutation(api.advertisements.deleteAdvertisement);
   const sendNotifications = useMutation(api.advertisements.sendNotificationsToNearbyUsers);
+  const sendPushNotifications = useAction(api.advertisements.sendPushNotificationToNearbyUsers);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const convex = useConvex();
 
@@ -461,18 +462,51 @@ export default function AdvertisementModal({
           discountText: hasDiscount && discountText.trim() ? discountText.trim() : undefined,
         });
 
-        // Send notifications immediately after creating new advertisement
-        const notificationResult = await sendNotifications({
-          advertisementId,
-          shopLat: shopLocation.lat,
-          shopLng: shopLocation.lng,
-          radiusKm: 5,
-        });
+        // Send push notifications to nearby users (5km radius)
+        try {
+          const pushResult = await sendPushNotifications({
+            advertisementId,
+            shopId,
+            shopLat: shopLocation.lat,
+            shopLng: shopLocation.lng,
+            radiusKm: 5,
+          });
 
-        Alert.alert(
-          "Success", 
-          `Advertisement created and sent to ${notificationResult.sent} nearby users!`
-        );
+          if (pushResult.success) {
+            Alert.alert(
+              "Success!", 
+              `Advertisement created and push notifications sent to ${pushResult.sentCount} nearby users!${
+                (pushResult.nearbyUsersCount && pushResult.enabledUsersCount && pushResult.nearbyUsersCount > pushResult.enabledUsersCount)
+                  ? ` (${pushResult.nearbyUsersCount - pushResult.enabledUsersCount} users don't have notifications enabled)` 
+                  : ''
+              }`
+            );
+          } else {
+            Alert.alert(
+              "Partial Success", 
+              `Advertisement created but failed to send push notifications: ${pushResult.error}`
+            );
+          }
+        } catch (error) {
+          console.error('Push notification error:', error);
+          Alert.alert(
+            "Partial Success", 
+            "Advertisement created but failed to send push notifications. Please check your internet connection."
+          );
+        }
+
+        // Also send in-app notifications (existing system)
+        try {
+          await sendNotifications({
+            advertisementId,
+            shopLat: shopLocation.lat,
+            shopLng: shopLocation.lng,
+            radiusKm: 5,
+          });
+        } catch (error) {
+          console.error('In-app notification error:', error);
+        }
+
         resetForm();
         onClose();
       }
@@ -492,21 +526,47 @@ export default function AdvertisementModal({
     setShowTerms(false);
     
     if (editingAdvertisement) {
-      // For editing mode - just send notifications
+      // For editing mode - send push notifications
       setLoading(true);
       try {
-        const notificationResult = await sendNotifications({
+        const pushResult = await sendPushNotifications({
           advertisementId: editingAdvertisement._id,
+          shopId,
           shopLat: shopLocation.lat,
           shopLng: shopLocation.lng,
           radiusKm: 5,
         });
 
-        Alert.alert(
-          "Success",
-          `Notification sent to ${notificationResult.sent} nearby users!${notificationResult.skipped > 0 ? ` (${notificationResult.skipped} users already notified)` : ''}`
-        );
+        if (pushResult.success) {
+          Alert.alert(
+            "Success!",
+            `Push notifications sent to ${pushResult.sentCount} nearby users!${
+              (pushResult.nearbyUsersCount && pushResult.enabledUsersCount && pushResult.nearbyUsersCount > pushResult.enabledUsersCount)
+                ? ` (${pushResult.nearbyUsersCount - pushResult.enabledUsersCount} users don't have notifications enabled)` 
+                : ''
+            }`
+          );
+        } else {
+          Alert.alert(
+            "Error", 
+            `Failed to send push notifications: ${pushResult.error}`
+          );
+        }
+
+        // Also send in-app notifications
+        try {
+          const notificationResult = await sendNotifications({
+            advertisementId: editingAdvertisement._id,
+            shopLat: shopLocation.lat,
+            shopLng: shopLocation.lng,
+            radiusKm: 5,
+          });
+        } catch (error) {
+          console.error('In-app notification error:', error);
+        }
+
       } catch (error) {
+        console.error('Push notification error:', error);
         Alert.alert("Error", "Failed to send notifications");
       } finally {
         setLoading(false);

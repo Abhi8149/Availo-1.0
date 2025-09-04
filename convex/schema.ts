@@ -10,6 +10,19 @@ export default defineSchema({
     password: v.optional(v.string()), // Optional for backward compatibility
     role: v.union(v.literal("shopkeeper"), v.literal("customer")),
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+    // Location and OneSignal fields
+    location: v.optional(v.object({
+      lat: v.number(),
+      lng: v.number(),
+      address: v.optional(v.string()),
+      lastUpdated: v.number(),
+    })),
+    oneSignalPlayerId: v.optional(v.string()),
+    pushNotificationsEnabled: v.optional(v.boolean()),
+    // Legacy fields for backward compatibility
+    fcmToken: v.optional(v.string()),
+    pushToken: v.optional(v.string()),
   }).index("by_email", ["email"]),
 
   shops: defineTable({

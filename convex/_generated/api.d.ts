@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as advertisements from "../advertisements.js";
 import type * as auth from "../auth.js";
+import type * as debug from "../debug.js";
 import type * as emailConfig from "../emailConfig.js";
 import type * as files from "../files.js";
 import type * as items from "../items.js";
@@ -33,6 +34,7 @@ import type * as verifyEmail from "../verifyEmail.js";
 declare const fullApi: ApiFromModules<{
   advertisements: typeof advertisements;
   auth: typeof auth;
+  debug: typeof debug;
   emailConfig: typeof emailConfig;
   files: typeof files;
   items: typeof items;

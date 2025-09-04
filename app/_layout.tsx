@@ -1,8 +1,10 @@
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { View } from 'react-native';
+import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Stack } from "expo-router";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
+import { OneSignalService } from "../services/oneSignalService";
 
 // Safely get Convex URL with error handling
 const getConvexUrl = () => {
@@ -19,6 +21,11 @@ const convex = new ConvexReactClient(getConvexUrl(), {
 });
 
 export default function RootLayout() {
+  useEffect(() => {
+    // Initialize OneSignal
+    OneSignalService.initialize();
+  }, []);
+
   return (
     <ErrorBoundary>
       {/* StatusBar always visible, matching notification modal */}

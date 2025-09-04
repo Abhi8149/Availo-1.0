@@ -16,6 +16,8 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { PasswordInput } from "../common/PasswordInput";
 import VerificationScreen from "./VerificationScreen";
+import { OneSignalService } from "../../services/oneSignalService";
+import { LocationService } from "../../services/locationService";
 
 interface RegisterScreenProps {
   onAuthSuccess: (userId: Id<"users">) => void;
@@ -35,6 +37,9 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
   const getUserByEmail = useMutation(api.users.getUserByEmail);
   const sendVerificationCode = useAction(api.auth.sendVerificationCode);
   const verifyCode = useMutation(api.auth.verifyCode);
+  const updateUserProfile = useMutation(api.users.updateUserProfile);
+  const updateUserLocation = useMutation(api.users.updateUserLocation);
+  const updateOneSignalPlayerId = useMutation(api.users.updateOneSignalPlayerId);
 
   const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !password.trim() || !role) {
@@ -82,6 +87,60 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
           password: password.trim(), // Include password
           role: role as "shopkeeper" | "customer",
         });
+
+        // Get user location and OneSignal player ID
+        try {
+          console.log('🔄 Getting OneSignal player ID...');
+          // Get OneSignal player ID
+          const playerId = await OneSignalService.getPlayerId();
+          console.log('📱 OneSignal Player ID:', playerId);
+          
+          // Get user location (only for customers)
+          let userLocation = null;
+          if (role === "customer") {
+            console.log('📍 Getting user location...');
+            userLocation = await LocationService.getCurrentLocation();
+            console.log('🗺️ User Location:', userLocation);
+            if (userLocation) {
+              // Update OneSignal with location
+              OneSignalService.setUserLocation(userLocation.lat, userLocation.lng);
+              console.log('✅ OneSignal location updated');
+            }
+          }
+
+          // Set OneSignal tags
+          if (playerId) {
+            console.log('🏷️ Setting OneSignal tags...');
+            OneSignalService.setUserTags({
+              userId: userId.toString(),
+              role: role!,
+              email: email.toLowerCase().trim(),
+              name: name.trim(),
+            });
+            console.log('✅ OneSignal tags set');
+          } else {
+            console.log('⚠️ No OneSignal player ID available');
+          }
+
+          // Update user profile with location and OneSignal data
+          console.log('💾 Updating user profile with location and OneSignal data...');
+          await updateUserProfile({
+            userId,
+            location: userLocation ? {
+              lat: userLocation.lat,
+              lng: userLocation.lng,
+              address: userLocation.address,
+            } : undefined,
+            oneSignalPlayerId: playerId || undefined,
+            pushNotificationsEnabled: !!playerId,
+          });
+          console.log('✅ User profile updated successfully');
+
+        } catch (error) {
+          console.error('❌ Error setting up user location/notifications:', error);
+          // Don't fail the registration process for this
+        }
+
         onAuthSuccess(userId as any);
         setShowVerification(false);
         setPendingUserId(null);

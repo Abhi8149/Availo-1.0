@@ -51,6 +51,9 @@ const SEARCH_MODES = [
 ];
 
 export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: CustomerHomeProps) {
+  // Mutation for updating user data in database
+  const updateUserProfile = useMutation(api.users.updateUserProfile);
+
   // State variables
   const [searchMode, setSearchMode] = useState<"shops" | "items">("shops");
   const [searchTerm, setSearchTerm] = useState("");
@@ -194,6 +197,36 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
     }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  // Save user location to database when CustomerHome is accessed
+  useEffect(() => {
+    const saveUserLocationOnAccess = async () => {
+      try {
+        console.log('📍 CustomerHome accessed - attempting to save user location...');
+        
+        // Check location permission
+        const { status } = await Location.getForegroundPermissionsAsync();
+        const isLocationEnabled = await Location.hasServicesEnabledAsync();
+        
+        if (status === 'granted' && isLocationEnabled) {
+          // Get current location
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          
+          // Save to database
+          await saveLocationToDatabase(location.coords.latitude, location.coords.longitude);
+        } else {
+          console.log('⚠️ Location permission not granted or services disabled - cannot save location');
+        }
+      } catch (error) {
+        console.error('❌ Error saving location on CustomerHome access:', error);
+      }
+    };
+
+    // Save location every time CustomerHome is accessed
+    saveUserLocationOnAccess();
+  }, []); // Empty dependency array means this runs only once when component mounts
 
   // Dummy isSearching for now
   //Here I have changes a little bit
@@ -399,6 +432,50 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
     }).start(() => {
       setShowLocationPopup(false);
     });
+  };
+
+  // Function to save user location to database
+  const saveLocationToDatabase = async (latitude: number, longitude: number) => {
+    try {
+      // Get address using reverse geocoding
+      let address = '';
+      try {
+        const reverseGeocode = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
+        });
+
+        if (reverseGeocode.length > 0) {
+          const addressData = reverseGeocode[0];
+          address = [
+            addressData.street,
+            addressData.city,
+            addressData.region,
+            addressData.postalCode,
+          ].filter(Boolean).join(', ');
+        }
+      } catch (error) {
+        console.log('Could not get address:', error);
+      }
+
+      // Update location in database
+      await updateUserProfile({
+        userId: user._id,
+        location: {
+          lat: latitude,
+          lng: longitude,
+          address: address,
+        },
+      });
+
+      console.log('✅ User location saved to database:', {
+        lat: latitude,
+        lng: longitude,
+        address: address,
+      });
+    } catch (error) {
+      console.error('❌ Error saving user location to database:', error);
+    }
   };
 
   const getCurrentLocation = async () => {

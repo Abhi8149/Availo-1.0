@@ -10,6 +10,13 @@ export const updateUserProfile = mutation({
     phone: v.optional(v.string()),
     photoUri: v.optional(v.string()),
     password: v.optional(v.string()),
+    location: v.optional(v.object({
+      lat: v.number(),
+      lng: v.number(),
+      address: v.optional(v.string()),
+    })),
+    oneSignalPlayerId: v.optional(v.string()),
+    pushNotificationsEnabled: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const updates: any = {};
@@ -18,6 +25,14 @@ export const updateUserProfile = mutation({
     if (args.phone !== undefined) updates.phone = args.phone;
     if (args.photoUri !== undefined) updates.photoUri = args.photoUri;
     if (args.password !== undefined) updates.password = args.password;
+    if (args.location !== undefined) {
+      updates.location = {
+        ...args.location,
+        lastUpdated: Date.now(),
+      };
+    }
+    if (args.oneSignalPlayerId !== undefined) updates.oneSignalPlayerId = args.oneSignalPlayerId;
+    if (args.pushNotificationsEnabled !== undefined) updates.pushNotificationsEnabled = args.pushNotificationsEnabled;
     await ctx.db.patch(args.userId, updates);
   },
 });
@@ -217,5 +232,144 @@ export const deleteUserAccount = mutation({
     await ctx.db.delete(args.userId);
 
     return { success: true, message: "Account and all related data deleted successfully" };
+  },
+});
+
+// Location and OneSignal related functions
+export const updateUserLocation = mutation({
+  args: {
+    userId: v.id("users"),
+    lat: v.number(),
+    lng: v.number(),
+    address: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
+      location: {
+        lat: args.lat,
+        lng: args.lng,
+        address: args.address,
+        lastUpdated: Date.now(),
+      },
+    });
+  },
+});
+
+export const updateOneSignalPlayerId = mutation({
+  args: {
+    userId: v.id("users"),
+    playerId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
+      oneSignalPlayerId: args.playerId,
+      pushNotificationsEnabled: true,
+    });
+  },
+});
+
+export const getNearbyUsers = query({
+  args: {
+    shopLat: v.number(),
+    shopLng: v.number(),
+    radiusKm: v.number(),
+  },
+  handler: async (ctx, args) => {
+    console.log('🔍 Getting nearby users for push notifications:', {
+      shopLat: args.shopLat,
+      shopLng: args.shopLng,
+      radiusKm: args.radiusKm
+    });
+
+    // Get all users with location data and push notifications enabled
+    const allUsers = await ctx.db
+      .query("users")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("location"), undefined),
+          q.neq(q.field("oneSignalPlayerId"), undefined),
+          q.eq(q.field("pushNotificationsEnabled"), true)
+        )
+      )
+      .collect();
+
+    console.log('👥 All users with push enabled and valid data:', allUsers.length);
+
+    // Additional validation for OneSignal player ID format
+    const usersWithValidPlayerIds = allUsers.filter(user => {
+      if (!user.oneSignalPlayerId) return false;
+      
+      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.oneSignalPlayerId);
+      if (!isValidUUID) {
+        console.log('⚠️ User with invalid OneSignal player ID format:', user.name, user.oneSignalPlayerId);
+      }
+      return isValidUUID;
+    });
+
+    console.log('✅ Users with valid OneSignal player IDs:', usersWithValidPlayerIds.length);
+
+    // Filter users within radius using Haversine formula
+    const nearbyUsers = usersWithValidPlayerIds.filter(user => {
+      if (!user.location) {
+        console.log('❌ User missing location:', user._id);
+        return false;
+      }
+      
+      const distance = calculateDistance(
+        args.shopLat,
+        args.shopLng,
+        user.location.lat,
+        user.location.lng
+      );
+      
+      const isNearby = distance <= args.radiusKm;
+      console.log(`📍 User ${user.name} (${user._id}): ${distance.toFixed(2)}km away, nearby: ${isNearby}, playerID: ${user.oneSignalPlayerId?.substring(0, 8)}..., pushEnabled: ${user.pushNotificationsEnabled}`);
+      
+      return isNearby;
+    });
+
+    console.log('🎯 Nearby users with valid data found:', nearbyUsers.length);
+
+    return nearbyUsers.map(user => ({
+      _id: user._id,
+      name: user.name,
+      role: user.role,
+      oneSignalPlayerId: user.oneSignalPlayerId,
+      pushNotificationsEnabled: user.pushNotificationsEnabled,
+      location: user.location,
+    }));
+  },
+});
+
+// Helper function to calculate distance between two points using Haversine formula
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLng/2) * Math.sin(dLng/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c;
+  return distance;
+}
+
+// Debug query to check OneSignal setup
+export const debugOneSignalUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    const allUsers = await ctx.db.query("users").collect();
+    
+    return allUsers.map(user => ({
+      _id: user._id,
+      name: user.name,
+      role: user.role,
+      hasLocation: !!user.location,
+      location: user.location,
+      hasOneSignalId: !!user.oneSignalPlayerId,
+      oneSignalId: user.oneSignalPlayerId ? user.oneSignalPlayerId.substring(0, 8) + '...' : null,
+      pushEnabled: user.pushNotificationsEnabled,
+    }));
   },
 });
