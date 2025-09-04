@@ -29,6 +29,7 @@ interface ShopInventoryModalProps {
   visible: boolean;
   onClose: () => void;
   shop: Shop;
+  userLocation?: { latitude: number; longitude: number } | null;
   onAddToWishlist?: (item: any) => void;
   wishlistItems?: any[];
   onAddToFavourites?: (shop: Shop) => void;
@@ -37,7 +38,12 @@ interface ShopInventoryModalProps {
   cartItems?: CartItem[];
   onAddToCart?: (item: any) => void;
   onRemoveFromCart?: (itemId: Id<"items">) => void;
+  onUpdateQuantity?: (itemId: Id<"items">, newQuantity: number) => void;
+  onIncreaseQuantity?: (itemId: Id<"items">) => void;
+  onDecreaseQuantity?: (itemId: Id<"items">) => void;
   onBookItems?: (items: CartItem[]) => void;
+  onViewOrders?: () => void; // New prop for viewing orders
+  hasOrders?: boolean; // New prop to check if customer has orders
 }
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -46,6 +52,7 @@ export default function ShopInventoryModal({
   visible, 
   onClose, 
   shop, 
+  userLocation,
   onAddToWishlist, 
   wishlistItems = [],
   onAddToFavourites,
@@ -54,7 +61,12 @@ export default function ShopInventoryModal({
   cartItems = [],
   onAddToCart,
   onRemoveFromCart,
-  onBookItems
+  onUpdateQuantity,
+  onIncreaseQuantity,
+  onDecreaseQuantity,
+  onBookItems,
+  onViewOrders,
+  hasOrders = false
 }: ShopInventoryModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -82,6 +94,74 @@ export default function ShopInventoryModal({
   const fadeAnim = React.useRef(new Animated.Value(1)).current;
 
   const items = useQuery(api.items.getItemsByShop, { shopId: shop._id });
+
+  // Function to calculate distance between two coordinates using Haversine formula
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Radius of the Earth in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c; // Distance in kilometers
+    return Math.round(distance * 100) / 100; // Round to 2 decimal places
+  };
+
+  // Calculate delivery availability
+  const calculateDeliveryAvailability = (item: any) => {
+    // Check if shop has delivery service
+    const hasDelivery = shop.hasDelivery === true;
+    
+    console.log('Delivery calculation for item:', item.name);
+    console.log('Shop hasDelivery:', shop.hasDelivery);
+    console.log('Shop deliveryRange:', shop.deliveryRange);
+    console.log('User location:', userLocation);
+    console.log('Shop location:', shop.location);
+    
+    if (!hasDelivery) {
+      console.log('Shop does not have delivery service');
+      return {
+        ...item,
+        isDeliveryAvailable: false,
+        isInDeliveryRange: false
+      };
+    }
+
+    // If user location is not available, we can't determine range
+    if (!userLocation || !shop.location) {
+      console.log('Missing location data - userLocation:', !!userLocation, 'shopLocation:', !!shop.location);
+      return {
+        ...item,
+        isDeliveryAvailable: true,
+        isInDeliveryRange: false
+      };
+    }
+
+    // Calculate distance between customer and shop
+    const distance = calculateDistance(
+      userLocation.latitude,
+      userLocation.longitude,
+      shop.location.lat,
+      shop.location.lng
+    );
+
+    // Check if customer is within delivery range
+    const deliveryRange = shop.deliveryRange || 0;
+    const isInRange = distance <= deliveryRange;
+
+    console.log('Distance calculated:', distance, 'km');
+    console.log('Delivery range:', deliveryRange, 'km');
+    console.log('Is in range:', isInRange);
+
+    return {
+      ...item,
+      isDeliveryAvailable: true,
+      isInDeliveryRange: isInRange,
+      distance: distance
+    };
+  };
 
   // Helper functions
   const formatEstimatedTime = (estimatedTime: any) => {
@@ -747,8 +827,11 @@ export default function ShopInventoryModal({
       {/* Item Details Modal */}
       <ItemDetailsModal
         visible={itemDetailsVisible}
-        onClose={handleItemDetailsClose}
-        item={selectedItem}
+        onClose={() => {
+          setItemDetailsVisible(false);
+          setSelectedItem(null);
+        }}
+        item={selectedItem ? calculateDeliveryAvailability(selectedItem) : null}
         onAddToWishlist={onAddToWishlist}
         isInWishlist={selectedItem ? wishlistItems.some(wishlistItem => wishlistItem._id === selectedItem._id) : false}
         onAddToCart={onAddToCart}
@@ -764,6 +847,12 @@ export default function ShopInventoryModal({
         shopName={shop.name}
         onBookNow={onBookItems || (() => {})}
         onRemoveFromCart={onRemoveFromCart || (() => {})}
+        onUpdateQuantity={onUpdateQuantity}
+        onIncreaseQuantity={onIncreaseQuantity}
+        onDecreaseQuantity={onDecreaseQuantity}
+        onViewOrders={onViewOrders}
+        hasOrders={hasOrders}
+        hasDelivery={shop.hasDelivery}
       />
     </>
   );

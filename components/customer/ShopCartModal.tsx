@@ -22,6 +22,12 @@ interface ShopCartModalProps {
   shopName: string;
   onBookNow: (items: CartItem[]) => void;
   onRemoveFromCart: (itemId: Id<"items">) => void;
+  onUpdateQuantity?: (itemId: Id<"items">, newQuantity: number) => void;
+  onIncreaseQuantity?: (itemId: Id<"items">) => void;
+  onDecreaseQuantity?: (itemId: Id<"items">) => void;
+  onViewOrders?: () => void; // New prop to open orders modal
+  hasOrders?: boolean; // New prop to check if customer has any orders
+  hasDelivery?: boolean;
 }
 
 export default function ShopCartModal({
@@ -32,6 +38,12 @@ export default function ShopCartModal({
   shopName,
   onBookNow,
   onRemoveFromCart,
+  onUpdateQuantity,
+  onIncreaseQuantity,
+  onDecreaseQuantity,
+  onViewOrders,
+  hasOrders = false,
+  hasDelivery = true,
 }: ShopCartModalProps) {
   // Filter items for this shop only
   const shopCartItems = cartItems.filter(item => item.shopId === shopId);
@@ -75,6 +87,18 @@ export default function ShopCartModal({
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.shopName}>{shopName}</Text>
           
+          {/* View Your Orders Button */}
+          {onViewOrders && hasOrders && (
+            <TouchableOpacity 
+              style={styles.viewOrdersButton}
+              onPress={onViewOrders}
+            >
+              <Ionicons name="receipt-outline" size={20} color="#2563EB" />
+              <Text style={styles.viewOrdersButtonText}>View Your Orders</Text>
+              <Ionicons name="chevron-forward" size={16} color="#2563EB" />
+            </TouchableOpacity>
+          )}
+          
           {shopCartItems.length > 0 ? (
             <>
               {/* Cart Items */}
@@ -99,16 +123,39 @@ export default function ShopCartModal({
                   <View style={styles.itemDetails}>
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
-                    <Text style={styles.quantity}>Quantity: {item.quantity}</Text>
+                    <Text style={styles.itemTotal}>
+                      Subtotal: {formatPrice((item.price || 0) * item.quantity)}
+                    </Text>
                   </View>
 
-                  {/* Remove Button */}
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => onRemoveFromCart(item._id)}
-                  >
-                    <Ionicons name="trash-outline" size={20} color="#DC2626" />
-                  </TouchableOpacity>
+                  {/* Quantity Controls */}
+                  <View style={styles.quantityControls}>
+                    <TouchableOpacity
+                      style={[styles.quantityButton, item.quantity === 1 && styles.quantityButtonDisabled]}
+                      onPress={() => {
+                        if (item.quantity === 1) {
+                          onRemoveFromCart(item._id);
+                        } else {
+                          onDecreaseQuantity?.(item._id);
+                        }
+                      }}
+                    >
+                      <Ionicons 
+                        name={item.quantity === 1 ? "trash-outline" : "remove-outline"} 
+                        size={16} 
+                        color={item.quantity === 1 ? "#DC2626" : "#374151"} 
+                      />
+                    </TouchableOpacity>
+                    
+                    <Text style={styles.quantityText}>{item.quantity}</Text>
+                    
+                    <TouchableOpacity
+                      style={styles.quantityButton}
+                      onPress={() => onIncreaseQuantity?.(item._id)}
+                    >
+                      <Ionicons name="add-outline" size={16} color="#374151" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))}
 
@@ -119,9 +166,25 @@ export default function ShopCartModal({
               </View>
 
               {/* Book Now Button */}
-              <TouchableOpacity style={styles.bookButton} onPress={handleBookNow}>
-                <Ionicons name="bicycle" size={20} color="#FFFFFF" />
-                <Text style={styles.bookButtonText}>Book Now</Text>
+              <TouchableOpacity 
+                style={[
+                  styles.bookButton,
+                  !hasDelivery && styles.bookButtonDisabled
+                ]} 
+                onPress={hasDelivery ? handleBookNow : undefined}
+                disabled={!hasDelivery}
+              >
+                <Ionicons 
+                  name="bicycle" 
+                  size={20} 
+                  color={hasDelivery ? "#FFFFFF" : "#9CA3AF"} 
+                />
+                <Text style={[
+                  styles.bookButtonText,
+                  !hasDelivery && styles.bookButtonTextDisabled
+                ]}>
+                  {hasDelivery ? "Book Now" : "Delivery Not Available"}
+                </Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -174,6 +237,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     marginBottom: 8,
   },
+  viewOrdersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EFF6FF',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  viewOrdersButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2563EB',
+    marginLeft: 8,
+  },
   cartItem: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
@@ -214,6 +296,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
   },
+  itemTotal: {
+    fontSize: 14,
+    color: '#059669',
+    fontWeight: '500',
+  },
+  quantityControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 4,
+  },
+  quantityButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  quantityButtonDisabled: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+  },
+  quantityText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginHorizontal: 12,
+    minWidth: 20,
+    textAlign: 'center',
+  },
   removeButton: {
     padding: 8,
   },
@@ -249,6 +365,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  bookButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+  },
+  bookButtonTextDisabled: {
+    color: '#9CA3AF',
   },
   emptyCartContainer: {
     flex: 1,

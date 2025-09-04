@@ -70,6 +70,8 @@ interface Shop {
     openTime: string;
     closeTime: string;
   };
+  hasDelivery?: boolean;
+  deliveryRange?: number;
 }
 
 interface EditShopModalProps {
@@ -106,6 +108,10 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
   const [closingHours, setClosingHours] = useState("");
   const [closingMinutes, setClosingMinutes] = useState("");
   const [closingPeriod, setClosingPeriod] = useState("PM");
+  
+  // Delivery-related states
+  const [hasDelivery, setHasDelivery] = useState(false);
+  const [deliveryRange, setDeliveryRange] = useState("");
   
   // Image management states
   const [existingImages, setExistingImages] = useState<Id<"_storage">[]>([]);
@@ -197,6 +203,10 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
         setClosingMinutes("0");
         setClosingPeriod("PM");
       }
+      
+      // Initialize delivery settings
+      setHasDelivery(shop.hasDelivery || false);
+      setDeliveryRange(shop.deliveryRange ? shop.deliveryRange.toString() : "");
       
       // Initialize images
       if (shop.shopImageIds && shop.shopImageIds.length > 0) {
@@ -562,6 +572,12 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
         businessHours = { openTime, closeTime };
       }
 
+      // Validate delivery range if delivery is enabled
+      if (hasDelivery && (!deliveryRange || isNaN(parseFloat(deliveryRange)) || parseFloat(deliveryRange) <= 0)) {
+        Alert.alert("Error", "Please enter a valid delivery range");
+        return;
+      }
+
       await updateShop({
         shopId: shop._id,
         name: shopName.trim(),
@@ -575,6 +591,8 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
         shopImageId: mainImageId, // For backward compatibility
         shopImageIds: finalImageIds.length > 0 ? finalImageIds : undefined,
         businessHours,
+        hasDelivery,
+        deliveryRange: hasDelivery ? parseFloat(deliveryRange) : undefined,
       });
 
       onClose();
@@ -1153,6 +1171,69 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
               <Text style={styles.timeHint}>
                 Set your regular business hours (12-hour format)
               </Text>
+            </View>
+
+            {/* Delivery Section */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Delivery Service</Text>
+              <View style={styles.statusButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.statusButton,
+                    hasDelivery && styles.statusButtonOpen,
+                  ]}
+                  onPress={() => setHasDelivery(true)}
+                >
+                  <Ionicons
+                    name="bicycle"
+                    size={20}
+                    color={hasDelivery ? "#FFFFFF" : "#6B7280"}
+                  />
+                  <Text
+                    style={[
+                      styles.statusButtonText,
+                      hasDelivery && styles.statusButtonTextSelected,
+                    ]}
+                  >
+                    Yes
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.statusButton,
+                    !hasDelivery && styles.statusButtonClosed,
+                  ]}
+                  onPress={() => setHasDelivery(false)}
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={!hasDelivery ? "#FFFFFF" : "#6B7280"}
+                  />
+                  <Text
+                    style={[
+                      styles.statusButtonText,
+                      !hasDelivery && styles.statusButtonTextSelected,
+                    ]}
+                  >
+                    No
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {hasDelivery && (
+                <View style={{ marginTop: 12 }}>
+                  <Text style={styles.label}>Delivery Range (km)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={deliveryRange}
+                    onChangeText={setDeliveryRange}
+                    placeholder="Enter delivery range in kilometers"
+                    keyboardType="numeric"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+              )}
             </View>
           </View>
 
@@ -1867,5 +1948,41 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 12,
     fontStyle: "italic",
+  },
+  
+  // Delivery styles
+  statusButtons: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+  },
+  statusButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFFFFF",
+  },
+  statusButtonOpen: {
+    backgroundColor: "#10B981",
+    borderColor: "#10B981",
+  },
+  statusButtonClosed: {
+    backgroundColor: "#EF4444",
+    borderColor: "#EF4444",
+  },
+  statusButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  statusButtonTextSelected: {
+    color: "#FFFFFF",
   },
 });

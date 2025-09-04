@@ -27,6 +27,7 @@ import ShopMapModal from "./ShopMapModal";
 import ShopInventoryModal from "./ShopInventoryModal";
 import CustomerSidebar from "./CustomerSidebar";
 import NotificationsModal from "./NotificationsModal";
+import CustomerOrdersModal from "./CustomerOrdersModal";
 import { User, CartItem } from "../../types/interfaces";
 
 interface CustomerHomeProps {
@@ -115,7 +116,59 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
     setCartItems(prev => prev.filter(item => item._id !== itemId));
   }, []);
 
-  const handleBookItems = useCallback((items: CartItem[]) => {
+  const handleUpdateQuantity = useCallback((itemId: Id<"items">, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      // Remove item if quantity becomes 0
+      handleRemoveFromCart(itemId);
+      return;
+    }
+    
+    setCartItems(prev => 
+      prev.map(item => 
+        item._id === itemId ? { ...item, quantity: newQuantity } : item
+      )
+    );
+  }, [handleRemoveFromCart]);
+
+  const handleIncreaseQuantity = useCallback((itemId: Id<"items">) => {
+    setCartItems(prev => 
+      prev.map(item => 
+        item._id === itemId ? { ...item, quantity: item.quantity + 1 } : item
+      )
+    );
+  }, []);
+
+  const handleDecreaseQuantity = useCallback((itemId: Id<"items">) => {
+    setCartItems(prev => 
+      prev.map(item => {
+        if (item._id === itemId) {
+          const newQuantity = item.quantity - 1;
+          return newQuantity <= 0 ? item : { ...item, quantity: newQuantity };
+        }
+        return item;
+      })
+    );
+  }, []);
+
+  // Order creation mutation
+  const createOrder = useMutation(api.orders.createOrder);
+
+  const handleBookItems = useCallback(async (items: CartItem[]) => {
+    if (!user) {
+      Alert.alert('Error', 'Please log in to place an order');
+      return;
+    }
+
+    if (!userLocation) {
+      Alert.alert('Error', 'Location is required to place an order');
+      return;
+    }
+
+    if (items.length === 0) {
+      Alert.alert('Error', 'No items to order');
+      return;
+    }
+
     Alert.alert(
       'Confirm Booking',
       `Do you want to book ${items.length} item(s)?`,
@@ -126,16 +179,63 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
         },
         {
           text: 'Book Now',
-          onPress: () => {
-            // TODO: Implement booking logic
-            Alert.alert('Success', 'Your items have been booked!');
-            // Remove booked items from cart
-            const itemIds = items.map(item => item._id);
-            setCartItems(prev => prev.filter(item => !itemIds.includes(item._id)));
+          onPress: async () => {
+            try {
+              const totalAmount = items.reduce((total, item) => {
+                return total + (item.price || 0) * item.quantity;
+              }, 0);
+
+              const shopId = items[0].shopId;
+              if (!shopId) {
+                Alert.alert('Error', 'Invalid shop information');
+                return;
+              }
+
+              await createOrder({
+                shopId,
+                customerId: user._id,
+                customerName: user.name,
+                customerMobile: user.phone || user.email, // Use phone if available, fallback to email
+                customerLocation: {
+                  lat: userLocation.latitude,
+                  lng: userLocation.longitude,
+                  address: "Current Location", // You might want to get actual address
+                },
+                items: items.map(item => ({
+                  itemId: item._id,
+                  itemName: item.name,
+                  quantity: item.quantity,
+                  price: item.price,
+                })),
+                totalAmount,
+              });
+
+              Alert.alert('Success', 'Your order has been placed successfully!');
+              
+              // Additional alert for order tracking
+              setTimeout(() => {
+                Alert.alert(
+                  'Track Your Order', 
+                  'Check your order status in Your Orders option',
+                  [{ text: 'OK' }]
+                );
+              }, 1000);
+              
+              // Remove booked items from cart
+              const itemIds = items.map(item => item._id);
+              setCartItems(prev => prev.filter(item => !itemIds.includes(item._id)));
+            } catch (error) {
+              console.error('Order creation failed:', error);
+              Alert.alert('Error', 'Failed to place order. Please try again.');
+            }
           }
         }
       ]
     );
+  }, [user, userLocation, createOrder]);
+
+  const handleViewOrders = useCallback(() => {
+    setOrdersVisible(true);
   }, []);
 
   // Load wishlist from AsyncStorage on mount
@@ -190,6 +290,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   const [showMap, setShowMap] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [ordersVisible, setOrdersVisible] = useState(false);
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -618,6 +719,15 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
     // Show all items regardless of stock status
   });
 
+  // Query to check if user has any orders (to show/hide "View Orders" button)
+  const userOrders = useQuery(api.orders.getCustomerOrders, { 
+    customerId: user._id 
+  });
+
+  // Check if user has any orders to determine if "View Orders" button should be shown
+  const hasOrders = useMemo(() => {
+    return userOrders && userOrders.length > 0;
+  }, [userOrders]);
 
   // Memoize display data for FlatList
   const shopsDisplayData = useMemo(() => {
@@ -1160,6 +1270,8 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
           }}
           onAddToWishlist={handleAddToWishlist}
           isInWishlist={wishlistItems.some(wishlistItem => wishlistItem._id === selectedItem._id)}
+          onAddToCart={handleAddToCart}
+          isInCart={cartItems.some(cartItem => cartItem._id === selectedItem._id)}
         />
       )}
 
@@ -1174,6 +1286,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
           visible={!!selectedShopForInventory}
           onClose={() => setSelectedShopForInventory(null)}
           shop={selectedShopForInventory}
+          userLocation={userLocation}
           onAddToWishlist={handleAddToWishlist}
           wishlistItems={wishlistItems}
           onAddToFavourites={handleAddToFavourites}
@@ -1182,7 +1295,12 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
           cartItems={cartItems}
           onAddToCart={handleAddToCart}
           onRemoveFromCart={handleRemoveFromCart}
+          onUpdateQuantity={handleUpdateQuantity}
+          onIncreaseQuantity={handleIncreaseQuantity}
+          onDecreaseQuantity={handleDecreaseQuantity}
           onBookItems={handleBookItems}
+          onViewOrders={handleViewOrders}
+          hasOrders={hasOrders}
         />
       )}
 
@@ -1191,6 +1309,12 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
         onClose={() => setNotificationsVisible(false)}
         userId={user._id}
         onViewShop={handleViewShop}
+      />
+
+      <CustomerOrdersModal
+        visible={ordersVisible}
+        onClose={() => setOrdersVisible(false)}
+        userId={user._id}
       />
 
       <CustomerSidebar

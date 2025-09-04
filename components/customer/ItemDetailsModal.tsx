@@ -608,10 +608,11 @@ export default function ItemDetailsModal({
                       style={[
                         styles.cartButton,
                         isInCart && styles.cartButtonAdded,
-                        !item.inStock && styles.cartButtonDisabled
+                        !item.inStock && styles.cartButtonDisabled,
+                        isInCart && styles.cartButtonDisabled // Disable when already in cart
                       ]}
-                      onPress={() => item.inStock && onAddToCart(item)}
-                      disabled={!item.inStock}
+                      onPress={() => !isInCart && item.inStock && onAddToCart(item)}
+                      disabled={!item.inStock || isInCart} // Disable when out of stock OR already in cart
                     >
                       <Ionicons 
                         name={isInCart ? "cart" : "cart-outline"} 
@@ -631,9 +632,13 @@ export default function ItemDetailsModal({
                       <Text style={styles.deliveryMessageText}>
                         {item.isDeliveryAvailable === false 
                           ? "This shop does not offer delivery service" 
-                          : item.isInDeliveryRange === false 
+                          : item.isDeliveryAvailable === true && item.isInDeliveryRange === false 
                           ? "This shop is outside your delivery range"
                           : "Delivery status unavailable"}
+                      </Text>
+                      {/* Debug info - remove this after testing */}
+                      <Text style={{fontSize: 10, color: '#666', marginTop: 5}}>
+                        {/* Debug: isDeliveryAvailable: {String(item.isDeliveryAvailable)}, isInDeliveryRange: {String(item.isInDeliveryRange)} */}
                       </Text>
                     </View>
                   )}
