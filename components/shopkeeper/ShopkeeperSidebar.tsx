@@ -103,21 +103,21 @@ export default function ShopkeeperSidebar({
 
   const handleContactSupport = (method: "email" | "phone") => {
     if (method === "email") {
-      const email = "support@oldshopstatus.com";
+      const email = "piyushraj7308305@gmail.com";
       const subject = `Support Request from ${user.name}`;
       const body = `Hi Support Team,\n\nI need help with:\n\n[Please describe your issue here]\n\nUser Details:\nName: ${user.name}\nEmail: ${user.email}\nRole: ${user.role}\n\nThank you!`;
       
       const url = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       
       Linking.openURL(url).catch(() => {
-        Alert.alert("Error", "Unable to open email app. Please email us at support@oldshopstatus.com");
+        Alert.alert("Error", "Unable to open email app. Please email us at piyushraj7308305@gmail.com");
       });
     } else if (method === "phone") {
-      const phoneNumber = "+1234567890"; // Replace with your actual support number
+      const phoneNumber = "6204183318"; // Replace with your actual support number
       const url = Platform.OS === "ios" ? `tel:${phoneNumber}` : `tel:${phoneNumber}`;
       
       Linking.openURL(url).catch(() => {
-        Alert.alert("Error", "Unable to make phone call. Please call us at +1234567890");
+        Alert.alert("Error", "Unable to make phone call. Please call us at 6204183318");
       });
     }
   };
