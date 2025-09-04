@@ -18,6 +18,7 @@ import type * as auth from "../auth.js";
 import type * as emailConfig from "../emailConfig.js";
 import type * as files from "../files.js";
 import type * as items from "../items.js";
+import type * as orders from "../orders.js";
 import type * as shops from "../shops.js";
 import type * as users from "../users.js";
 import type * as verifyEmail from "../verifyEmail.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   emailConfig: typeof emailConfig;
   files: typeof files;
   items: typeof items;
+  orders: typeof orders;
   shops: typeof shops;
   users: typeof users;
   verifyEmail: typeof verifyEmail;

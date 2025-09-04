@@ -1,11 +1,3 @@
-interface User {
-  _id?: string;
-  name: string;
-  email: string;
-  phone?: string;
-  photoUri?: string;
-  role?: "shopkeeper" | "customer";
-}
 import React, { useState } from "react";
 import {
   View,
@@ -22,8 +14,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import EditProfileScreen from "../common/EditProfileScreen";
-import { useMutation } from "convex/react";
+import OrderHistoryModal from "./OrderHistoryModal";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { User } from "../../types/interfaces";
 
 interface ShopkeeperSidebarProps {
   visible: boolean;
@@ -49,9 +43,11 @@ export default function ShopkeeperSidebar({
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [orderHistoryVisible, setOrderHistoryVisible] = useState(false);
   
   const updateUserProfile = useMutation(api.users.updateUserProfile);
   const deleteUserAccount = useMutation(api.users.deleteUserAccount);
+  const shops = useQuery(api.shops.getShopsByOwner, { ownerUid: user._id });
 
   const handleSwitchRole = () => {
     Alert.alert(
@@ -292,6 +288,25 @@ export default function ShopkeeperSidebar({
                     <Text style={styles.menuItemTitle}>Switch to Customer</Text>
                     <Text style={styles.menuItemSubtitle}>
                       Browse shops as a customer
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+
+              {/* Order History */}
+              <TouchableOpacity 
+                style={styles.menuItem} 
+                onPress={() => setOrderHistoryVisible(true)}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.menuIcon, { backgroundColor: "#FEF3C7" }]}>
+                    <Ionicons name="time" size={20} color="#F59E0B" />
+                  </View>
+                  <View style={styles.menuItemText}>
+                    <Text style={styles.menuItemTitle}>Order History</Text>
+                    <Text style={styles.menuItemSubtitle}>
+                      View completed and rejected orders
                     </Text>
                   </View>
                 </View>
@@ -616,6 +631,13 @@ export default function ShopkeeperSidebar({
           </View>
         </View>
       </Modal>
+
+      {/* Order History Modal */}
+      <OrderHistoryModal
+        visible={orderHistoryVisible}
+        onClose={() => setOrderHistoryVisible(false)}
+        userId={user._id}
+      />
     </>
   );
 }

@@ -114,4 +114,31 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_email_code", ["email", "code"]),
+
+  orders: defineTable({
+    shopId: v.id("shops"),
+    customerId: v.id("users"),
+    customerName: v.string(),
+    customerMobile: v.optional(v.string()),
+    customerLocation: v.optional(v.object({
+      lat: v.number(),
+      lng: v.number(),
+      address: v.optional(v.string()),
+    })),
+    items: v.array(v.object({
+      itemId: v.id("items"),
+      itemName: v.string(),
+      quantity: v.number(),
+      price: v.optional(v.number()),
+    })),
+    totalAmount: v.optional(v.number()),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("rejected"), v.literal("completed"), v.literal("cancelled")),
+    deliveryTime: v.optional(v.number()), // Delivery time in minutes
+    rejectionReason: v.optional(v.string()), // Reason for rejection
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_shop", ["shopId"])
+    .index("by_customer", ["customerId"])
+    .index("by_status", ["status"]),
 });

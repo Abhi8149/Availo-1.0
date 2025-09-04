@@ -1,11 +1,3 @@
-interface User {
-  _id?: string;
-  name: string;
-  email: string;
-  phone?: string;
-  photoUri?: string;
-  role?: "shopkeeper" | "customer";
-}
 import React, { useState } from "react";
 import {
   View,
@@ -23,8 +15,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import EditProfileScreen from "../common/EditProfileScreen";
+import CustomerOrdersModal from "./CustomerOrdersModal";
 import { useQuery } from "convex/react";
 import { Id } from "../../convex/_generated/dataModel";
+import { User } from "../../types/interfaces";
 
 interface WishlistItem {
   _id: Id<"items">;
@@ -100,6 +94,7 @@ export default function CustomerSidebar({
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [yourOrdersModalVisible, setYourOrdersModalVisible] = useState(false);
   
   const updateUserProfile = useMutation(api.users.updateUserProfile);
   const deleteUserAccount = useMutation(api.users.deleteUserAccount);
@@ -439,6 +434,25 @@ export default function CustomerSidebar({
                   <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
               )}
+
+              {/* Your Orders */}
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => setYourOrdersModalVisible(true)}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.menuIcon, { backgroundColor: "#F0F9FF" }]}>
+                    <Ionicons name="bag-handle" size={20} color="#0EA5E9" />
+                  </View>
+                  <View style={styles.menuItemText}>
+                    <Text style={styles.menuItemTitle}>Your Orders</Text>
+                    <Text style={styles.menuItemSubtitle}>
+                      Track your order status
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
 
               {/* Wishlist */}
               <TouchableOpacity
@@ -929,6 +943,13 @@ export default function CustomerSidebar({
           </View>
         </View>
       </Modal>
+
+      {/* Customer Orders Modal */}
+      <CustomerOrdersModal
+        visible={yourOrdersModalVisible}
+        onClose={() => setYourOrdersModalVisible(false)}
+        userId={user._id}
+      />
     </>
   );
 }

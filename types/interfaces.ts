@@ -45,5 +45,7 @@ export interface User {
   _id: Id<"users">;
   name: string;
   email: string;
+  phone?: string;
+  photoUri?: string;
   role: "shopkeeper" | "customer";
 }

@@ -631,9 +631,13 @@ export default function ItemDetailsModal({
                       <Text style={styles.deliveryMessageText}>
                         {item.isDeliveryAvailable === false 
                           ? "This shop does not offer delivery service" 
-                          : item.isInDeliveryRange === false 
+                          : item.isDeliveryAvailable === true && item.isInDeliveryRange === false 
                           ? "This shop is outside your delivery range"
                           : "Delivery status unavailable"}
+                      </Text>
+                      {/* Debug info - remove this after testing */}
+                      <Text style={{fontSize: 10, color: '#666', marginTop: 5}}>
+                        {/* Debug: isDeliveryAvailable: {String(item.isDeliveryAvailable)}, isInDeliveryRange: {String(item.isInDeliveryRange)} */}
                       </Text>
                     </View>
                   )}
