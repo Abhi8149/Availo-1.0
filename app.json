@@ -58,7 +58,7 @@
       [
         "onesignal-expo-plugin",
         {
-          "mode": "production"
+          "mode": "development"
         }
       ]
     ],
@@ -67,6 +67,8 @@
     },
     "extra": {
       "EXPO_PUBLIC_LOCATIONIQ_API_KEY": "pk.2e5d70a914f544ff9b993af9ac29d478",
+      "EXPO_PUBLIC_ONESIGNAL_APP_ID":"3de46348-ec6d-4e68-8a4c-81536e45c73c",
+      "EXPO_PUBLIC_ONESIGNAL_REST_API_KEY":"os_v2_app_hxsggshmnvhgrcsmqfjw4rohhsqkzpm3jujusr4susrsp5janrsm6xhcx23tsyt63wopr44ycrxp6mnzpjhe3z2hdiwmjg5cktuwnfy",
       "router": {},
       "eas": {
         "projectId": "40fcdf87-8551-4976-8beb-69db52b62053"

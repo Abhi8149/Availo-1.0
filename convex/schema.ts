@@ -135,6 +135,8 @@ export default defineSchema({
       lng: v.number(),
     })),
     customerNotes: v.optional(v.string()),
+    deliveryTime: v.optional(v.number()), // Delivery time in minutes
+    rejectionReason: v.optional(v.string()), // Reason for rejection
     estimatedReadyTime: v.optional(v.number()),
     placedAt: v.number(),
     createdAt: v.number(),

@@ -23,6 +23,7 @@ const convex = new ConvexReactClient(getConvexUrl(), {
 export default function RootLayout() {
   useEffect(() => {
     // Initialize OneSignal
+    console.log('🚀 Root layout mounting - initializing OneSignal...');
     OneSignalService.initialize();
   }, []);
 

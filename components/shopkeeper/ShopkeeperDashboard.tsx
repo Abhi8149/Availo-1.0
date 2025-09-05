@@ -22,6 +22,7 @@ import ItemsManagement from "./ItemsManagement";
 import ShopImage from "../common/ShopImage";
 import ShopStatusScheduleModal from "./ShopStatusScheduleModal";
 import ShopkeeperSidebar from "./ShopkeeperSidebar";
+import { ShopOrdersModal } from "./ShopOrdersModal";
 
 interface User {
   _id: Id<"users">;
@@ -36,6 +37,21 @@ interface ShopkeeperDashboardProps {
   onSwitchToCustomer: () => void;
 }
 
+// Component to show pending orders count for a shop
+const PendingOrdersBadge = ({ shopId }: { shopId: Id<"shops"> }) => {
+  const pendingCount = useQuery(api.orders.getPendingOrdersCount, { shopId });
+  
+  if (!pendingCount || pendingCount === 0) return null;
+  
+  return (
+    <View style={styles.notificationBadge}>
+      <Text style={styles.notificationText}>
+        {pendingCount > 99 ? '99+' : pendingCount.toString()}
+      </Text>
+    </View>
+  );
+};
+
 export default function ShopkeeperDashboard({ user, onLogout, onSwitchToCustomer }: ShopkeeperDashboardProps) {
   const [showAddShop, setShowAddShop] = useState(false);
   const [editShop, setEditShop] = useState<any>(null);
@@ -46,6 +62,7 @@ export default function ShopkeeperDashboard({ user, onLogout, onSwitchToCustomer
     shopName: string;
   } | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [selectedShopForOrders, setSelectedShopForOrders] = useState<any | null>(null);
   
   const shops = useQuery(api.shops.getShopsByOwner, { ownerUid: user._id });
   const updateShopStatus = useMutation(api.shops.updateShopStatus);
@@ -334,6 +351,20 @@ function timeStringToMinutes(timeString: string): number {
 
                   <View style={styles.shopActions}>
                     <TouchableOpacity
+                      style={styles.ordersButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setSelectedShopForOrders(shop);
+                      }}
+                    >
+                      <View style={styles.ordersButtonContent}>
+                        <Ionicons name="receipt-outline" size={16} color="#2563EB" />
+                        <Text style={styles.ordersButtonText}>Orders</Text>
+                        <PendingOrdersBadge shopId={shop._id} />
+                      </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
                       style={styles.manageItemsButton}
                       onPress={(e) => {
                         e.stopPropagation();
@@ -341,7 +372,7 @@ function timeStringToMinutes(timeString: string): number {
                       }}
                     >
                       <Ionicons name="cube-outline" size={16} color="#2563EB" />
-                      <Text style={styles.manageItemsButtonText}>Manage Items</Text>
+                      <Text style={styles.manageItemsButtonText}>Items</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -411,6 +442,15 @@ function timeStringToMinutes(timeString: string): number {
         onLogout={onLogout}
         onSwitchToCustomer={onSwitchToCustomer}
       />
+
+      {/* Shop Orders Modal */}
+      {selectedShopForOrders && (
+        <ShopOrdersModal
+          visible={!!selectedShopForOrders}
+          onClose={() => setSelectedShopForOrders(null)}
+          shopId={selectedShopForOrders._id}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -716,7 +756,46 @@ const styles = StyleSheet.create({
   },
   shopActions: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
+  },
+  ordersButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "#FEF3C7",
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+    position: "relative",
+  },
+  ordersButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  ordersButtonText: {
+    color: "#D97706",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "#EF4444",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  notificationText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "bold",
+    textAlign: "center",
   },
   manageItemsButton: {
     flex: 1,
@@ -728,11 +807,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#EFF6FF",
     borderWidth: 1,
     borderColor: "#DBEAFE",
-    gap: 6,
+    gap: 4,
   },
   manageItemsButtonText: {
     color: "#2563EB",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
   },
   toggleButton: {
@@ -742,7 +821,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 10,
     borderRadius: 12,
-    gap: 6,
+    gap: 4,
   },
   toggleButtonOpen: {
     backgroundColor: "#16A34A",
@@ -752,7 +831,7 @@ const styles = StyleSheet.create({
   },
   toggleButtonText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
   },
   addButton: {

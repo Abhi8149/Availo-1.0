@@ -43,11 +43,25 @@ export const createOrder = mutation({
 export const getShopOrders = query({
   args: { shopId: v.id("shops") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const orders = await ctx.db
       .query("orders")
       .withIndex("by_shop", (q) => q.eq("shopId", args.shopId))
       .order("desc")
       .collect();
+    
+    // Enhance orders with customer information
+    const enhancedOrders = await Promise.all(
+      orders.map(async (order) => {
+        const customer = await ctx.db.get(order.customerId);
+        return {
+          ...order,
+          customerName: customer?.name || "Unknown Customer",
+          customerMobile: customer?.phone || null,
+        };
+      })
+    );
+    
+    return enhancedOrders;
   },
 });
 
@@ -118,7 +132,15 @@ export const getPendingOrdersCount = query({
 export const updateOrderStatus = mutation({
   args: {
     orderId: v.id("orders"),
-    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("rejected"), v.literal("completed"), v.literal("cancelled")),
+    status: v.union(
+      v.literal("pending"), 
+      v.literal("confirmed"), 
+      v.literal("preparing"), 
+      v.literal("ready"), 
+      v.literal("completed"), 
+      v.literal("rejected"), 
+      v.literal("cancelled")
+    ),
     deliveryTime: v.optional(v.number()),
     rejectionReason: v.optional(v.string()),
   },
@@ -144,11 +166,24 @@ export const updateOrderStatus = mutation({
 export const getCustomerOrders = query({
   args: { customerId: v.id("users") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const orders = await ctx.db
       .query("orders")
       .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
       .order("desc")
       .collect();
+    
+    // Enhance orders with shop information
+    const enhancedOrders = await Promise.all(
+      orders.map(async (order) => {
+        const shop = await ctx.db.get(order.shopId);
+        return {
+          ...order,
+          shopName: shop?.name || "Unknown Shop",
+        };
+      })
+    );
+    
+    return enhancedOrders;
   },
 });
 

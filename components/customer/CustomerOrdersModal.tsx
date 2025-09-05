@@ -65,7 +65,11 @@ export default function CustomerOrdersModal({
     switch (status) {
       case "pending":
         return "#F59E0B";
-      case "accepted":
+      case "confirmed":
+        return "#3B82F6";
+      case "preparing":
+        return "#8B5CF6";
+      case "ready":
         return "#10B981";
       case "completed":
         return "#16A34A";
@@ -82,8 +86,12 @@ export default function CustomerOrdersModal({
     switch (order.status) {
       case "pending":
         return "Pending from shopkeeper";
-      case "accepted":
-        return order.deliveryTime ? `Delivering in ${order.deliveryTime} minutes` : "Accepted by shopkeeper";
+      case "confirmed":
+        return order.deliveryTime ? `Will be delivered in ${order.deliveryTime} minutes` : "Confirmed by shopkeeper";
+      case "preparing":
+        return "Being prepared";
+      case "ready":
+        return order.deliveryTime ? `Ready for delivery in ${order.deliveryTime} minutes` : "Ready for pickup";
       case "completed":
         return "Order completed";
       case "rejected":
@@ -166,7 +174,7 @@ export default function CustomerOrdersModal({
   const renderOrderCard = (order: any) => {
     const shop = getShopDetails(order.shopId);
     const isExpanded = expandedOrders.has(order._id);
-    const canTakeAction = order.status === "pending" || order.status === "accepted";
+    const canTakeAction = order.status === "pending" || order.status === "confirmed" || order.status === "preparing" || order.status === "ready";
 
     return (
       <View key={order._id} style={styles.orderCard}>
@@ -197,7 +205,7 @@ export default function CustomerOrdersModal({
           </View>
           
           <Text style={styles.itemsPreview}>
-            {order.items.slice(0, 2).map((item: any) => item.itemName).join(", ")}
+            {order.items.slice(0, 2).map((item: any) => item.name).join(", ")}
             {order.items.length > 2 && ` +${order.items.length - 2} more`}
           </Text>
 
@@ -221,7 +229,7 @@ export default function CustomerOrdersModal({
             <Text style={styles.itemsTitle}>Items:</Text>
             {order.items.map((item: any, index: number) => (
               <View key={index} style={styles.itemRow}>
-                <Text style={styles.itemName}>{item.itemName}</Text>
+                <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.itemQuantity}>x{item.quantity}</Text>
                 <Text style={styles.itemPrice}>₹{item.price || 0}</Text>
               </View>

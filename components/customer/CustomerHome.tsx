@@ -194,20 +194,20 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
               await createOrder({
                 shopId,
                 customerId: user._id,
-                customerName: user.name,
-                customerMobile: user.phone || user.email, // Use phone if available, fallback to email
-                customerLocation: {
-                  lat: userLocation.latitude,
-                  lng: userLocation.longitude,
-                  address: "Current Location", // You might want to get actual address
-                },
                 items: items.map(item => ({
                   itemId: item._id,
-                  itemName: item.name,
+                  name: item.name,
                   quantity: item.quantity,
                   price: item.price,
+                  priceDescription: item.priceDescription,
                 })),
                 totalAmount,
+                orderType: "delivery", // Set as delivery by default, can be enhanced with user choice
+                deliveryAddress: {
+                  address: "Current Location", // You might want to get actual address
+                  lat: userLocation.latitude,
+                  lng: userLocation.longitude,
+                },
               });
 
               Alert.alert('Success', 'Your order has been placed successfully!');

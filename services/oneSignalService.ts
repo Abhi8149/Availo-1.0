@@ -69,6 +69,96 @@ export class OneSignalService {
     }
   }
 
+  // Check if user has granted notification permissions
+  static async hasNotificationPermission(): Promise<boolean> {
+    try {
+      const permission = await OneSignal.Notifications.getPermissionAsync();
+      console.log('🔔 OneSignal: Current notification permission:', permission);
+      return permission;
+    } catch (error) {
+      console.error('❌ OneSignal: Error checking notification permission:', error);
+      return false;
+    }
+  }
+
+  // Check if user is subscribed to notifications
+  static async isSubscribed(): Promise<boolean> {
+    try {
+      // Check if user has opted in to notifications
+      const optedIn = await OneSignal.User.pushSubscription.getOptedIn();
+      console.log('📲 OneSignal: User subscription status (opted in):', optedIn);
+      return optedIn;
+    } catch (error) {
+      console.error('❌ OneSignal: Error checking subscription status:', error);
+      return false;
+    }
+  }
+
+  // Get comprehensive notification status
+  static async getNotificationStatus(): Promise<{
+    hasPermission: boolean;
+    isSubscribed: boolean;
+    playerId: string | null;
+    canReceiveNotifications: boolean;
+  }> {
+    try {
+      const [hasPermission, isSubscribed, playerId] = await Promise.all([
+        this.hasNotificationPermission(),
+        this.isSubscribed(),
+        this.getPlayerId()
+      ]);
+
+      const canReceiveNotifications = hasPermission && isSubscribed && !!playerId;
+
+      const status = {
+        hasPermission,
+        isSubscribed,
+        playerId,
+        canReceiveNotifications
+      };
+
+      console.log('📊 OneSignal: Complete notification status:', status);
+      return status;
+    } catch (error) {
+      console.error('❌ OneSignal: Error getting notification status:', error);
+      return {
+        hasPermission: false,
+        isSubscribed: false,
+        playerId: null,
+        canReceiveNotifications: false
+      };
+    }
+  }
+
+  // Request notification permission if not granted
+  static async requestNotificationPermission(): Promise<boolean> {
+    try {
+      console.log('🔔 OneSignal: Requesting notification permission...');
+      const granted = await OneSignal.Notifications.requestPermission(true);
+      console.log('📱 OneSignal: Permission request result:', granted);
+      return granted;
+    } catch (error) {
+      console.error('❌ OneSignal: Error requesting permission:', error);
+      return false;
+    }
+  }
+
+  // Enable/disable notifications (subscription)
+  static async setNotificationSubscription(enabled: boolean): Promise<void> {
+    try {
+      console.log('🔄 OneSignal: Setting notification subscription to:', enabled);
+      if (enabled) {
+        OneSignal.User.pushSubscription.optIn();
+      } else {
+        OneSignal.User.pushSubscription.optOut();
+      }
+      console.log('✅ OneSignal: Subscription updated successfully');
+    } catch (error) {
+      console.error('❌ OneSignal: Error updating subscription:', error);
+      throw error;
+    }
+  }
+
   // Set user tags for targeting
   static setUserTags(tags: Record<string, string>) {
     OneSignal.User.addTags(tags);

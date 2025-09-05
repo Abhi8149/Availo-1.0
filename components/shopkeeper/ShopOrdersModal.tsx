@@ -13,6 +13,7 @@ import {
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { DirectionsService } from "../../services/directionsService";
 
 interface ShopOrdersModalProps {
   visible: boolean;
@@ -24,7 +25,9 @@ interface OrderDetailsModalProps {
   visible: boolean;
   onClose: () => void;
   order: any;
-  onUpdateStatus: (orderId: Id<"orders">, status: "pending" | "accepted" | "rejected" | "completed", deliveryTime?: number, rejectionReason?: string) => void;
+  onUpdateStatus: (orderId: Id<"orders">, status: "pending" | "confirmed" | "preparing" | "ready" | "rejected" | "completed", deliveryTime?: number, rejectionReason?: string) => void;
+  openDirections: (customerLocation?: { lat: number; lng: number; address?: string }) => void;
+  isHistoryMode?: boolean;
 }
 
 // Helper function to calculate distance between two points
@@ -53,24 +56,32 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
   shopId,
 }) => {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<"active" | "history">("active");
+  
   const allOrders = useQuery(
     api.orders.getShopOrders, 
     visible && shopId ? { shopId } : "skip"
   );
   
-  // Filter out completed, rejected, and cancelled orders to show only active orders
-  const orders = allOrders?.filter((order: any) => 
-    order.status !== "completed" && 
-    order.status !== "rejected" && 
-    order.status !== "cancelled"
-  );
+  // Filter orders based on active tab
+  const orders = allOrders?.filter((order: any) => {
+    if (activeTab === "active") {
+      return order.status !== "completed" && 
+             order.status !== "rejected" && 
+             order.status !== "cancelled";
+    } else {
+      return order.status === "completed" || 
+             order.status === "rejected" || 
+             order.status === "cancelled";
+    }
+  });
   
   const updateOrderStatus = useMutation(api.orders.updateOrderStatus);
 
   // Get shop location for distance calculation
   const shop = useQuery(api.shops.getShop, visible && shopId ? { shopId } : "skip");
 
-  const handleStatusUpdate = async (orderId: Id<"orders">, status: "pending" | "accepted" | "rejected" | "completed", deliveryTime?: number, rejectionReason?: string) => {
+  const handleStatusUpdate = async (orderId: Id<"orders">, status: "pending" | "confirmed" | "preparing" | "ready" | "rejected" | "completed", deliveryTime?: number, rejectionReason?: string) => {
     try {
       await updateOrderStatus({ 
         orderId, 
@@ -89,29 +100,34 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
     }
   };
 
-  const openDirections = (customerLocation?: { lat: number; lng: number; address?: string }) => {
+  const openDirections = async (customerLocation?: { lat: number; lng: number; address?: string }) => {
     if (!customerLocation) {
       Alert.alert("Error", "Customer location not available");
       return;
     }
     
-    const { lat, lng } = customerLocation;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-    
-    Linking.canOpenURL(url).then((supported) => {
-      if (supported) {
-        Linking.openURL(url);
-      } else {
-        Alert.alert("Error", "Cannot open maps application");
-      }
-    });
+    try {
+      await DirectionsService.openDirections({
+        latitude: customerLocation.lat,
+        longitude: customerLocation.lng,
+        shopName: "Customer Location",
+        address: customerLocation.address
+      });
+    } catch (error) {
+      console.error('Error opening directions:', error);
+      Alert.alert("Error", "Unable to open directions");
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
         return "#F59E0B";
-      case "accepted":
+      case "confirmed":
+        return "#3B82F6";
+      case "preparing":
+        return "#8B5CF6";
+      case "ready":
         return "#10B981";
       case "rejected":
         return "#EF4444";
@@ -123,13 +139,13 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
   };
 
   const getCustomerDistance = (order: any) => {
-    if (!shop || !order.customerLocation) return "Unknown";
+    if (!shop || !order.deliveryAddress) return "Unknown";
     
     const distance = calculateDistance(
       shop.location.lat,
       shop.location.lng,
-      order.customerLocation.lat,
-      order.customerLocation.lng
+      order.deliveryAddress.lat,
+      order.deliveryAddress.lng
     );
     
     return `${distance} km away`;
@@ -145,14 +161,39 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
           </TouchableOpacity>
         </View>
 
+        {/* Tab Navigation */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "active" && styles.activeTab]}
+            onPress={() => setActiveTab("active")}
+          >
+            <Text style={[styles.tabText, activeTab === "active" && styles.activeTabText]}>
+              Active Orders
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "history" && styles.activeTab]}
+            onPress={() => setActiveTab("history")}
+          >
+            <Text style={[styles.tabText, activeTab === "history" && styles.activeTabText]}>
+              Order History
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <ScrollView style={styles.content}>
           {!orders ? (
             <Text style={styles.loading}>Loading orders...</Text>
           ) : orders.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No orders yet</Text>
+              <Text style={styles.emptyStateText}>
+                {activeTab === "active" ? "No active orders" : "No order history"}
+              </Text>
               <Text style={styles.emptyStateSubtext}>
-                New orders will appear here
+                {activeTab === "active" 
+                  ? "New orders will appear here" 
+                  : "Completed, rejected, and cancelled orders will appear here"
+                }
               </Text>
             </View>
           ) : (
@@ -204,7 +245,7 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
                   style={styles.directionsButton}
                   onPress={(e) => {
                     e.stopPropagation();
-                    openDirections(order.customerLocation);
+                    openDirections(order.deliveryAddress);
                   }}
                 >
                   <Text style={styles.directionsButtonText}>
@@ -222,6 +263,8 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
           onClose={() => setSelectedOrder(null)}
           order={selectedOrder ? allOrders?.find(o => o._id === selectedOrder._id) || selectedOrder : null}
           onUpdateStatus={handleStatusUpdate}
+          openDirections={openDirections}
+          isHistoryMode={activeTab === "history"}
         />
       </View>
     </Modal>
@@ -234,6 +277,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   onClose,
   order,
   onUpdateStatus,
+  openDirections,
+  isHistoryMode = false,
 }) => {
   const [showDeliveryOptions, setShowDeliveryOptions] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -244,17 +289,22 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   const deliveryTimes = [10, 15, 20, 30, 45, 60];
 
   const handleDeliveryTime = (minutes: number) => {
+    const isPending = order.status === "pending";
+    const actionText = isPending ? "Confirm & set delivery" : "Update delivery time";
+    const statusText = isPending ? "Order confirmed and will be delivered" : "Delivery time updated to";
+    
     Alert.alert(
-      "Confirm Delivery",
-      `Deliver order in ${minutes} minutes?`,
+      isPending ? "Confirm Delivery" : "Update Delivery Time",
+      `${actionText} to ${minutes} minutes?`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Confirm",
+          text: isPending ? "Confirm" : "Update",
           onPress: async () => {
-            await onUpdateStatus(order._id, "accepted", minutes);
+            const newStatus = isPending ? "confirmed" : order.status;
+            await onUpdateStatus(order._id, newStatus, minutes);
             setShowDeliveryOptions(false);
-            Alert.alert("Success", `Order will be delivered in ${minutes} minutes`);
+            Alert.alert("Success", `${statusText} ${minutes} minutes`);
           }
         }
       ]
@@ -301,6 +351,18 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               Ordered: {new Date(order._creationTime).toLocaleDateString()} at{" "}
               {new Date(order._creationTime).toLocaleTimeString()}
             </Text>
+            {order.deliveryAddress && (
+              <View style={styles.deliveryInfo}>
+                <Text style={styles.deliveryLabel}>Delivery Address:</Text>
+                <Text style={styles.deliveryAddress}>{order.deliveryAddress.address}</Text>
+                <TouchableOpacity 
+                  style={styles.detailDirectionsButton}
+                  onPress={() => openDirections(order.deliveryAddress)}
+                >
+                  <Text style={styles.detailDirectionsButtonText}>📍 Get Directions</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {/* Items Details */}
@@ -308,7 +370,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             <Text style={styles.sectionTitle}>Order Items</Text>
             {order.items.map((item: any, index: number) => (
               <View key={index} style={styles.itemRow}>
-                <Text style={styles.itemName}>{item.itemName}</Text>
+                <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.itemQuantity}>x{item.quantity}</Text>
                 <Text style={styles.itemPrice}>₹{item.price || 0}</Text>
               </View>
@@ -320,51 +382,66 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           </View>
 
           {/* Action Buttons */}
-          {order.status === "pending" && (
-            <View style={styles.actionContainer}>
-              <TouchableOpacity
-                style={styles.deliverButton}
-                onPress={() => setShowDeliveryOptions(true)}
-              >
-                <Text style={styles.deliverButtonText}>Deliver In</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.rejectButton}
-                onPress={() => setShowRejectModal(true)}
-              >
-                <Text style={styles.rejectButtonText}>Reject Order</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {order.status === "accepted" && (
+          {/* Action buttons - only show for active orders, not history */}
+          {!isHistoryMode && (
             <>
-              <View style={styles.actionContainer}>
+              {order.status === "pending" && (
+                <View style={styles.actionContainer}>
+                  <TouchableOpacity
+                    style={styles.deliverButton}
+                    onPress={() => setShowDeliveryOptions(true)}
+                  >
+                    <Text style={styles.deliverButtonText}>Accept & Set Delivery Time</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.rejectButton}
+                    onPress={() => setShowRejectModal(true)}
+                  >
+                    <Text style={styles.rejectButtonText}>Reject Order</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {order.status === "confirmed" && (
+                <View style={styles.actionContainer}>
+                  <TouchableOpacity
+                    style={styles.deliverButton}
+                    onPress={() => setShowDeliveryOptions(true)}
+                  >
+                    <Text style={styles.deliverButtonText}>Update Delivery Time</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.rejectButton}
+                    onPress={() => setShowRejectModal(true)}
+                  >
+                    <Text style={styles.rejectButtonText}>Cancel Order</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {order.status === "preparing" && (
                 <TouchableOpacity
                   style={styles.deliverButton}
-                  onPress={() => setShowDeliveryOptions(true)}
+                  onPress={async () => {
+                    await onUpdateStatus(order._id, "ready");
+                  }}
                 >
-                  <Text style={styles.deliverButtonText}>Deliver In</Text>
+                  <Text style={styles.deliverButtonText}>Mark as Ready</Text>
                 </TouchableOpacity>
+              )}
 
+              {order.status === "ready" && (
                 <TouchableOpacity
-                  style={styles.rejectButton}
-                  onPress={() => setShowRejectModal(true)}
+                  style={styles.completeButton}
+                  onPress={async () => {
+                    await onUpdateStatus(order._id, "completed");
+                  }}
                 >
-                  <Text style={styles.rejectButtonText}>Reject Order</Text>
+                  <Text style={styles.completeButtonText}>Mark as Delivered</Text>
                 </TouchableOpacity>
-              </View>
-              
-              <TouchableOpacity
-                style={styles.completeButton}
-                onPress={async () => {
-                  await onUpdateStatus(order._id, "completed");
-                  // Modal will be closed by handleStatusUpdate
-                }}
-              >
-                <Text style={styles.completeButtonText}>Mark as Completed</Text>
-              </TouchableOpacity>
+              )}
             </>
           )}
         </ScrollView>
@@ -788,5 +865,59 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  deliveryInfo: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  deliveryLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 4,
+  },
+  deliveryAddress: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+  detailDirectionsButton: {
+    backgroundColor: "#2563EB",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  detailDirectionsButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "#F3F4F6",
+    margin: 16,
+    borderRadius: 8,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    borderRadius: 6,
+  },
+  activeTab: {
+    backgroundColor: "#3B82F6",
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  activeTabText: {
+    color: "#FFFFFF",
   },
 });

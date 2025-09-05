@@ -110,6 +110,8 @@ export const updateShop = mutation({
     if (args.shopImageId !== undefined) updates.shopImageId = args.shopImageId;
     if (args.shopImageIds !== undefined) updates.shopImageIds = args.shopImageIds;
     if (args.businessHours !== undefined) updates.businessHours = args.businessHours;
+    if (args.hasDelivery !== undefined) updates.hasDelivery = args.hasDelivery;
+    if (args.deliveryRange !== undefined) updates.deliveryRange = args.deliveryRange;
 
     await ctx.db.patch(args.shopId, updates);
   },

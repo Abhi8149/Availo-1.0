@@ -176,17 +176,17 @@ export default function ShopCard({ shop, onViewInventory, showInventoryButton = 
           )}
           
           {/* Delivery Information */}
-          {shop.hasDelivery && (
-            <View style={styles.deliveryContainer}>
-              <Ionicons name="bicycle" size={12} color="#2563EB" />
-              <Text style={styles.deliveryText}>
-                Delivers up to {shop.deliveryRange}km
-                {shop.distance && shop.distance <= (shop.deliveryRange ?? 0) 
-                  ? ' (Available here)'
-                  : ' (Out of range)'}
-              </Text>
-            </View>
-          )}
+            {shop.hasDelivery && shop.deliveryRange !== undefined && shop.distance !== undefined && (
+              <View style={styles.deliveryContainer}>
+                <Ionicons name="bicycle" size={12} color="#2563EB" />
+                <Text style={styles.deliveryText}>
+                  Delivers up to {shop.deliveryRange}km
+                  {(shop.distance !== null && shop.distance <= shop.deliveryRange)
+                    ? ' (Available here)'
+                    : ' (Out of range)'}
+                </Text>
+              </View>
+            )}
         </View>
         <View style={[
           styles.statusBadge,
