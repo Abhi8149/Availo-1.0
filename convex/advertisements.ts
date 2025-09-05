@@ -402,55 +402,12 @@ export const sendPushNotificationToNearbyUsers = action({
       shopLng: args.shopLng,
       radiusKm: args.radiusKm,
     });
-    console.log('Nearby users are',nearbyUsers)
-
-    console.log('📍 Initial nearby users found:', nearbyUsers.length);
 
     if (nearbyUsers.length === 0) {
       return {
         success: true,
         sentCount: 0,
         message: "No nearby users found",
-        nearbyUsersCount: 0,
-        enabledUsersCount: 0,
-      };
-    }
-
-    // Filter users who have valid OneSignal IDs and notifications enabled
-    const eligibleUsers = nearbyUsers.filter((user: any) => {
-      const hasValidOneSignalId = user.oneSignalPlayerId && 
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.oneSignalPlayerId);
-      
-      const hasNotificationsEnabled = user.pushNotificationsEnabled === true;
-      
-      const isCustomer = user.role;
-      
-      const isEligible = hasValidOneSignalId && hasNotificationsEnabled && isCustomer;
-      
-      console.log(`👤 User ${user.name} (${user._id}):`, {
-        hasValidOneSignalId,
-        hasNotificationsEnabled,
-        isCustomer,
-        isEligible,
-        playerId: user.oneSignalPlayerId ? user.oneSignalPlayerId.substring(0, 8) + '...' : 'NONE'
-      });
-      console.log('All those peoples who are eligible',isEligible)
-      return isEligible;
-    });
-
-    console.log('✅ Eligible users for push notification:', {
-      totalNearby: nearbyUsers.length,
-      eligible: eligibleUsers.length,
-      filtered: nearbyUsers.length - eligibleUsers.length
-    });
-
-    if (eligibleUsers.length === 0) {
-      return {
-        success: true,
-        sentCount: 0,
-        message: "No eligible users found (need valid OneSignal ID, notifications enabled, and customer role)",
-        nearbyUsersCount: nearbyUsers.length,
-        enabledUsersCount: 0,
       };
     }
 
@@ -470,22 +427,16 @@ export const sendPushNotificationToNearbyUsers = action({
       discountText: advertisement.discountText,
     };
 
-    // Extract player IDs from eligible users (already validated)
-    const playerIds: string[] = eligibleUsers.map((user: any) => user.oneSignalPlayerId);
-
-    console.log('🎯 Final player IDs for notification:', {
-      eligibleUsers: eligibleUsers.length,
-      playerIds: playerIds.length,
-      playerIdsList: playerIds
-    });
+    // Extract player IDs from nearby users
+    const playerIds: string[] = nearbyUsers
+      .filter((user: any) => user.oneSignalPlayerId)
+      .map((user: any) => user.oneSignalPlayerId);
 
     if (playerIds.length === 0) {
       return {
         success: true,
         sentCount: 0,
-        message: "No valid OneSignal player IDs found from eligible users",
-        nearbyUsersCount: nearbyUsers.length,
-        enabledUsersCount: 0,
+        message: "No nearby users with push notifications enabled",
       };
     }
 
@@ -494,36 +445,9 @@ export const sendPushNotificationToNearbyUsers = action({
       const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
       const oneSignalRestApiKey = process.env.ONESIGNAL_REST_API_KEY;
 
-      console.log('🔐 OneSignal Config Check:', {
-        hasAppId: !!oneSignalAppId,
-        appIdPreview: oneSignalAppId ? oneSignalAppId.substring(0, 8) + '...' : 'MISSING',
-        hasRestApiKey: !!oneSignalRestApiKey,
-        restApiKeyPreview: oneSignalRestApiKey ? oneSignalRestApiKey.substring(0, 10) + '...' : 'MISSING',
-        playerIdsCount: playerIds.length,
-        playerIds: playerIds
-      });
-
       if (!oneSignalAppId || !oneSignalRestApiKey) {
-        throw new Error("OneSignal credentials not configured in environment variables");
+        throw new Error("OneSignal credentials not configured");
       }
-
-      const notificationPayload = {
-        app_id: oneSignalAppId,
-        include_player_ids: playerIds,
-        headings: { en: title },
-        contents: { en: message },
-        data: additionalData,
-        android_accent_color: "FF9C27B0",
-        small_icon: "ic_notification",
-        large_icon: "ic_launcher",
-      };
-
-      console.log('📤 Sending OneSignal notification:', {
-        app_id: oneSignalAppId,
-        playerIds: playerIds,
-        title: title,
-        message: message
-      });
 
       const response: Response = await fetch("https://onesignal.com/api/v1/notifications", {
         method: "POST",
@@ -531,57 +455,22 @@ export const sendPushNotificationToNearbyUsers = action({
           "Content-Type": "application/json",
           "Authorization": `Basic ${oneSignalRestApiKey}`,
         },
-        body: JSON.stringify(notificationPayload),
+        body: JSON.stringify({
+          app_id: oneSignalAppId,
+          include_player_ids: playerIds,
+          headings: { en: title },
+          contents: { en: message },
+          data: additionalData,
+          android_accent_color: "FF9C27B0",
+          small_icon: "ic_notification",
+          large_icon: "ic_launcher",
+        }),
       });
 
       const result: any = await response.json();
 
-      console.log('📨 OneSignal Response:', {
-        status: response.status,
-        ok: response.ok,
-        result: result
-      });
-
       if (!response.ok) {
-        console.error('❌ OneSignal API Error Details:', {
-          status: response.status,
-          statusText: response.statusText,
-          errors: result.errors,
-          result: result
-        });
-        
-        const errorMsg = result.errors?.[0] || result.error || "Unknown OneSignal API error";
-        throw new Error(`OneSignal API error (${response.status}): ${errorMsg}`);
-      }
-
-      // Check for OneSignal specific errors even with 200 status
-      if (result.errors && result.errors.length > 0) {
-        console.error('⚠️ OneSignal returned errors with 200 status:', result.errors);
-        
-        // Handle common OneSignal errors
-        if (result.errors.includes('All included players are not subscribed')) {
-          console.log('🔍 OneSignal Error Analysis:');
-          console.log('- This means all player IDs are invalid or users are not subscribed');
-          console.log('- Check if users have granted notification permissions');
-          console.log('- Verify OneSignal player IDs are correctly captured');
-          console.log('- Player IDs sent:', playerIds);
-          
-          return {
-            success: false,
-            error: "All users are not subscribed to push notifications. Please ensure users have granted notification permissions and OneSignal is properly initialized.",
-            sentCount: 0,
-            nearbyUsersCount: nearbyUsers.length,
-            enabledUsersCount: eligibleUsers.length,
-          };
-        }
-        
-        return {
-          success: false,
-          error: `OneSignal error: ${result.errors.join(', ')}`,
-          sentCount: 0,
-          nearbyUsersCount: nearbyUsers.length,
-          enabledUsersCount: eligibleUsers.length,
-        };
+        throw new Error(`OneSignal API error: ${result.errors?.[0] || "Unknown error"}`);
       }
 
       // Update the advertisement with notification count
@@ -596,7 +485,7 @@ export const sendPushNotificationToNearbyUsers = action({
         sentCount: result.recipients || playerIds.length,
         oneSignalId: result.id,
         nearbyUsersCount: nearbyUsers.length,
-        enabledUsersCount: eligibleUsers.length,
+        enabledUsersCount: playerIds.length,
       };
 
     } catch (error: unknown) {

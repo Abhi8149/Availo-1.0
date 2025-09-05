@@ -6,33 +6,34 @@ export const createOrder = mutation({
   args: {
     shopId: v.id("shops"),
     customerId: v.id("users"),
-    customerName: v.string(),
-    customerMobile: v.optional(v.string()),
-    customerLocation: v.optional(v.object({
-      lat: v.number(),
-      lng: v.number(),
-      address: v.optional(v.string()),
-    })),
     items: v.array(v.object({
       itemId: v.id("items"),
-      itemName: v.string(),
+      name: v.string(), // Changed from itemName to name
       quantity: v.number(),
       price: v.optional(v.number()),
+      priceDescription: v.optional(v.string()),
     })),
-    totalAmount: v.optional(v.number()),
+    totalAmount: v.number(), // Changed from optional to required
+    orderType: v.optional(v.union(v.literal("pickup"), v.literal("delivery"))),
+    deliveryAddress: v.optional(v.object({
+      address: v.string(),
+      lat: v.number(),
+      lng: v.number(),
+    })),
+    customerNotes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const orderId = await ctx.db.insert("orders", {
       shopId: args.shopId,
       customerId: args.customerId,
-      customerName: args.customerName,
-      customerMobile: args.customerMobile,
-      customerLocation: args.customerLocation,
       items: args.items,
       totalAmount: args.totalAmount,
       status: "pending",
+      orderType: args.orderType || "pickup", // Use provided or default to pickup
+      deliveryAddress: args.deliveryAddress,
+      customerNotes: args.customerNotes,
+      placedAt: Date.now(),
       createdAt: Date.now(),
-      updatedAt: Date.now(),
     });
     return orderId;
   },

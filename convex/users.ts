@@ -275,12 +275,6 @@ export const getNearbyUsers = query({
     radiusKm: v.number(),
   },
   handler: async (ctx, args) => {
-    console.log('🔍 Getting nearby users for push notifications:', {
-      shopLat: args.shopLat,
-      shopLng: args.shopLng,
-      radiusKm: args.radiusKm
-    });
-
     // Get all users with location data and push notifications enabled
     const allUsers = await ctx.db
       .query("users")
@@ -288,32 +282,15 @@ export const getNearbyUsers = query({
         q.and(
           q.neq(q.field("location"), undefined),
           q.neq(q.field("oneSignalPlayerId"), undefined),
+          q.eq(q.field("role"), "customer"), // Only customers
           q.eq(q.field("pushNotificationsEnabled"), true)
         )
       )
       .collect();
 
-    console.log('👥 All users with push enabled and valid data:', allUsers.length);
-
-    // Additional validation for OneSignal player ID format
-    const usersWithValidPlayerIds = allUsers.filter(user => {
-      if (!user.oneSignalPlayerId) return false;
-      
-      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.oneSignalPlayerId);
-      if (!isValidUUID) {
-        console.log('⚠️ User with invalid OneSignal player ID format:', user.name, user.oneSignalPlayerId);
-      }
-      return isValidUUID;
-    });
-
-    console.log('✅ Users with valid OneSignal player IDs:', usersWithValidPlayerIds.length);
-
     // Filter users within radius using Haversine formula
-    const nearbyUsers = usersWithValidPlayerIds.filter(user => {
-      if (!user.location) {
-        console.log('❌ User missing location:', user._id);
-        return false;
-      }
+    const nearbyUsers = allUsers.filter(user => {
+      if (!user.location) return false;
       
       const distance = calculateDistance(
         args.shopLat,
@@ -322,20 +299,13 @@ export const getNearbyUsers = query({
         user.location.lng
       );
       
-      const isNearby = distance <= args.radiusKm;
-      console.log(`📍 User ${user.name} (${user._id}): ${distance.toFixed(2)}km away, nearby: ${isNearby}, playerID: ${user.oneSignalPlayerId?.substring(0, 8)}..., pushEnabled: ${user.pushNotificationsEnabled}`);
-      
-      return isNearby;
+      return distance <= args.radiusKm;
     });
-
-    console.log('🎯 Nearby users with valid data found:', nearbyUsers.length);
 
     return nearbyUsers.map(user => ({
       _id: user._id,
       name: user.name,
-      role: user.role,
       oneSignalPlayerId: user.oneSignalPlayerId,
-      pushNotificationsEnabled: user.pushNotificationsEnabled,
       location: user.location,
     }));
   },
@@ -354,22 +324,3 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   const distance = R * c;
   return distance;
 }
-
-// Debug query to check OneSignal setup
-export const debugOneSignalUsers = query({
-  args: {},
-  handler: async (ctx) => {
-    const allUsers = await ctx.db.query("users").collect();
-    
-    return allUsers.map(user => ({
-      _id: user._id,
-      name: user.name,
-      role: user.role,
-      hasLocation: !!user.location,
-      location: user.location,
-      hasOneSignalId: !!user.oneSignalPlayerId,
-      oneSignalId: user.oneSignalPlayerId ? user.oneSignalPlayerId.substring(0, 8) + '...' : null,
-      pushEnabled: user.pushNotificationsEnabled,
-    }));
-  },
-});

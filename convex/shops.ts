@@ -110,8 +110,6 @@ export const updateShop = mutation({
     if (args.shopImageId !== undefined) updates.shopImageId = args.shopImageId;
     if (args.shopImageIds !== undefined) updates.shopImageIds = args.shopImageIds;
     if (args.businessHours !== undefined) updates.businessHours = args.businessHours;
-    if (args.hasDelivery !== undefined) updates.hasDelivery = args.hasDelivery;
-    if (args.deliveryRange !== undefined) updates.deliveryRange = args.deliveryRange;
 
     await ctx.db.patch(args.shopId, updates);
   },
@@ -121,13 +119,6 @@ export const getAllShops = query({
   args: {},
   handler: async (ctx) => {
     return await ctx.db.query("shops").collect();
-  },
-});
-
-export const getShop = query({
-  args: { shopId: v.id("shops") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.shopId);
   },
 });
 
@@ -217,62 +208,6 @@ export const clearExpiredEstimatedTimes = mutation({
 export const deleteShop = mutation({
   args: { shopId: v.id("shops") },
   handler: async (ctx, args) => {
-    // 1. Get all items associated with this shop
-    const shopItems = await ctx.db
-      .query("items")
-      .withIndex("by_shop", (q) => q.eq("shopId", args.shopId))
-      .collect();
-    
-    // Delete all items for this shop
-    for (const item of shopItems) {
-      await ctx.db.delete(item._id);
-    }
-    
-    // 2. Get all orders associated with this shop
-    const shopOrders = await ctx.db
-      .query("orders")
-      .withIndex("by_shop", (q) => q.eq("shopId", args.shopId))
-      .collect();
-    
-    // Delete all orders for this shop
-    for (const order of shopOrders) {
-      await ctx.db.delete(order._id);
-    }
-    
-    // 3. Get all advertisements associated with this shop
-    const shopAdvertisements = await ctx.db
-      .query("advertisements")
-      .withIndex("by_shop", (q) => q.eq("shopId", args.shopId))
-      .collect();
-    
-    // 4. Delete all notifications for these advertisements
-    for (const advertisement of shopAdvertisements) {
-      const adNotifications = await ctx.db
-        .query("notifications")
-        .withIndex("by_advertisement", (q) => q.eq("advertisementId", advertisement._id))
-        .collect();
-      
-      for (const notification of adNotifications) {
-        await ctx.db.delete(notification._id);
-      }
-    }
-    
-    // 5. Delete all advertisements for this shop
-    for (const advertisement of shopAdvertisements) {
-      await ctx.db.delete(advertisement._id);
-    }
-    
-    // 6. Delete any remaining notifications directly associated with this shop
-    const shopNotifications = await ctx.db
-      .query("notifications")
-      .withIndex("by_shop", (q) => q.eq("shopId", args.shopId))
-      .collect();
-    
-    for (const notification of shopNotifications) {
-      await ctx.db.delete(notification._id);
-    }
-    
-    // 7. Finally, delete the shop itself
     await ctx.db.delete(args.shopId);
   },
 });

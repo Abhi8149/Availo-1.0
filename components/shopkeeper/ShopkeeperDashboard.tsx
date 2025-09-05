@@ -18,7 +18,6 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import AddShopModal from "./AddShopModal";
 import EditShopModal from "./EditShopModal";
-import { ShopOrdersModal } from "./ShopOrdersModal";
 import ItemsManagement from "./ItemsManagement";
 import ShopImage from "../common/ShopImage";
 import ShopStatusScheduleModal from "./ShopStatusScheduleModal";
@@ -37,19 +36,6 @@ interface ShopkeeperDashboardProps {
   onSwitchToCustomer: () => void;
 }
 
-// Component to show pending orders count
-function PendingOrdersBadge({ shopId }: { shopId: Id<"shops"> }) {
-  const pendingCount = useQuery(api.orders.getPendingOrdersCount, { shopId });
-  
-  if (!pendingCount || pendingCount === 0) return null;
-  
-  return (
-    <View style={styles.ordersBadge}>
-      <Text style={styles.ordersBadgeText}>{pendingCount}</Text>
-    </View>
-  );
-}
-
 export default function ShopkeeperDashboard({ user, onLogout, onSwitchToCustomer }: ShopkeeperDashboardProps) {
   const [showAddShop, setShowAddShop] = useState(false);
   const [editShop, setEditShop] = useState<any>(null);
@@ -60,10 +46,6 @@ export default function ShopkeeperDashboard({ user, onLogout, onSwitchToCustomer
     shopName: string;
   } | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [ordersModal, setOrdersModal] = useState<{
-    shopId: Id<"shops">;
-    shopName: string;
-  } | null>(null);
   
   const shops = useQuery(api.shops.getShopsByOwner, { ownerUid: user._id });
   const updateShopStatus = useMutation(api.shops.updateShopStatus);
@@ -382,19 +364,6 @@ function timeStringToMinutes(timeString: string): number {
                       </Text>
                     </TouchableOpacity>
                   </View>
-
-                  {/* Full-width New Orders button */}
-                  <TouchableOpacity
-                    style={styles.newOrdersButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      setOrdersModal({ shopId: shop._id, shopName: shop.name });
-                    }}
-                  >
-                    <Ionicons name="receipt-outline" size={18} color="#FFFFFF" />
-                    <Text style={styles.newOrdersButtonText}>New Orders</Text>
-                    <PendingOrdersBadge shopId={shop._id} />
-                  </TouchableOpacity>
                 </TouchableOpacity>
               );
             })}
@@ -432,13 +401,6 @@ function timeStringToMinutes(timeString: string): number {
         shopId={scheduleModal?.shopId ?? ("" as Id<"shops">)}
         shopName={scheduleModal?.shopName ?? ""}
         onSchedule={handleScheduleStatus}
-      />
-
-      {/* Shop Orders Modal */}
-      <ShopOrdersModal
-        visible={!!ordersModal}
-        onClose={() => setOrdersModal(null)}
-        shopId={ordersModal?.shopId ?? ("" as Id<"shops">)}
       />
 
       {/* Sidebar */}
@@ -896,39 +858,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
-  },
-  ordersBadge: {
-    position: "absolute",
-    top: -6,
-    right: -6,
-    backgroundColor: "#EF4444",
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  ordersBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  newOrdersButton: {
-    width: "100%",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: "#10B981",
-    borderRadius: 8,
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  newOrdersButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
   },
 });

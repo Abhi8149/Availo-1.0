@@ -108,6 +108,43 @@ export default defineSchema({
     .index("by_shop", ["shopId"])
     .index("by_advertisement_recipient", ["advertisementId", "recipientUserId"]),
 
+  orders: defineTable({
+    shopId: v.id("shops"),
+    customerId: v.id("users"),
+    items: v.array(v.object({
+      itemId: v.id("items"),
+      name: v.string(),
+      price: v.optional(v.number()),
+      quantity: v.number(),
+      priceDescription: v.optional(v.string()),
+    })),
+    totalAmount: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("preparing"),
+      v.literal("ready"),
+      v.literal("completed"),
+      v.literal("cancelled"),
+      v.literal("rejected")
+    ),
+    orderType: v.union(v.literal("pickup"), v.literal("delivery")),
+    deliveryAddress: v.optional(v.object({
+      address: v.string(),
+      lat: v.number(),
+      lng: v.number(),
+    })),
+    customerNotes: v.optional(v.string()),
+    estimatedReadyTime: v.optional(v.number()),
+    placedAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_shop", ["shopId"])
+    .index("by_customer", ["customerId"])
+    .index("by_status", ["status"])
+    .index("by_shop_status", ["shopId", "status"]),
+
   verificationCodes: defineTable({
     userId: v.string(),
     code: v.string(),
@@ -127,31 +164,4 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_email_code", ["email", "code"]),
-
-  orders: defineTable({
-    shopId: v.id("shops"),
-    customerId: v.id("users"),
-    customerName: v.string(),
-    customerMobile: v.optional(v.string()),
-    customerLocation: v.optional(v.object({
-      lat: v.number(),
-      lng: v.number(),
-      address: v.optional(v.string()),
-    })),
-    items: v.array(v.object({
-      itemId: v.id("items"),
-      itemName: v.string(),
-      quantity: v.number(),
-      price: v.optional(v.number()),
-    })),
-    totalAmount: v.optional(v.number()),
-    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("rejected"), v.literal("completed"), v.literal("cancelled")),
-    deliveryTime: v.optional(v.number()), // Delivery time in minutes
-    rejectionReason: v.optional(v.string()), // Reason for rejection
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_shop", ["shopId"])
-    .index("by_customer", ["customerId"])
-    .index("by_status", ["status"]),
 });

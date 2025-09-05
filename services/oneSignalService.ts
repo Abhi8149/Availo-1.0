@@ -3,6 +3,8 @@ import { Platform } from 'react-native';
 
 const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID!;
 const ONESIGNAL_REST_API_KEY = process.env.EXPO_PUBLIC_ONESIGNAL_REST_API_KEY!;
+console.log('OneSingal Id in oneSingalService',ONESIGNAL_APP_ID)
+console.log('OneSingal Rest API key in oneSingalService',ONESIGNAL_REST_API_KEY)
 
 export class OneSignalService {
   static initialize() {
@@ -17,8 +19,8 @@ export class OneSignalService {
     OneSignal.initialize(ONESIGNAL_APP_ID);
 
     // Request notification permission
-    OneSignal.Notifications.requestPermission(true);
-    console.log('📱 OneSignal: Requested notification permission');
+    const permission=OneSignal.Notifications.requestPermission(true);
+    console.log('📱 OneSignal: Requested notification permission',permission);
 
     // Set up notification handlers
     this.setupNotificationHandlers();

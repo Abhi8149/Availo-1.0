@@ -34,10 +34,7 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.WAKE_LOCK",
-        "android.permission.VIBRATE",
-        "com.google.android.c2dm.permission.RECEIVE"
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -46,13 +43,6 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      [
-        "onesignal-expo-plugin",
-        {
-          "mode": "development",
-          "devTeam": "47J7RWYXLY"
-        }
-      ],
       "expo-router",
       "expo-image-picker",
       "expo-location",
@@ -64,6 +54,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#FAFAFA"
         }
+      ],
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "production"
+        }
       ]
     ],
     "experiments": {
@@ -71,35 +67,17 @@
     },
     "extra": {
       "EXPO_PUBLIC_LOCATIONIQ_API_KEY": "pk.2e5d70a914f544ff9b993af9ac29d478",
-      "EXPO_PUBLIC_ONESIGNAL_APP_ID": "3de46348-ec6d-4e68-8a4c-81536e45c73c",
       "router": {},
       "eas": {
-        "build": {
-          "experimental": {
-            "ios": {
-              "appExtensions": [
-                {
-                  "targetName": "OneSignalNotificationServiceExtension",
-                  "bundleIdentifier": "com.shopstatus.app.OneSignalNotificationServiceExtension",
-                  "entitlements": {
-                    "com.apple.security.application-groups": [
-                      "group.com.shopstatus.app.onesignal"
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "projectId": "18433df7-96c1-40a5-a642-08b5a48e47ff"
+        "projectId": "40fcdf87-8551-4976-8beb-69db52b62053"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/18433df7-96c1-40a5-a642-08b5a48e47ff"
+      "url": "https://u.expo.dev/40fcdf87-8551-4976-8beb-69db52b62053"
     },
-    "owner": "abhijyoti"
+    "owner": "kartik05"
   }
 }
