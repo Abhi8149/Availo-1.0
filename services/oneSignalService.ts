@@ -145,6 +145,34 @@ export class OneSignalService {
         console.log('📋 Order navigation data stored for when ShopkeeperHome mounts');
       }
       
+    } else if (additionalData.type === 'order_status_update') {
+      console.log('📦 Order status update notification received:', additionalData.orderId, 'Status:', additionalData.status);
+      
+      // Store the order status data for navigation
+      this.pendingOrderStatusNavigation = {
+        orderId: additionalData.orderId,
+        shopId: additionalData.shopId,
+        customerId: additionalData.customerId,
+        status: additionalData.status,
+        deliveryTime: additionalData.deliveryTime,
+        rejectionReason: additionalData.rejectionReason,
+      };
+      
+      console.log('📝 Stored order status navigation data:', this.pendingOrderStatusNavigation);
+      
+      // Set a flag that the app can check
+      this.shouldShowOrderStatus = true;
+      console.log('🚩 Set shouldShowOrderStatus to true');
+      
+      // Trigger callback for order status navigation (for customers)
+      if (this.notificationNavigationCallback) {
+        console.log('📞 Calling notification navigation callback for order status...');
+        this.notificationNavigationCallback(this.pendingOrderStatusNavigation);
+      } else {
+        console.warn('⚠️ No notification navigation callback set! Order status data will be pending for CustomerHome.');
+        console.log('📋 Order status navigation data stored for when CustomerHome mounts');
+      }
+      
     } else if (additionalData.type === 'shop') {
       console.log('🏪 Navigate to shop:', additionalData.shopId);
       // Handle shop navigation logic here
@@ -159,8 +187,10 @@ export class OneSignalService {
   // Store pending navigation data
   static pendingAdvertisementNavigation: any = null;
   static pendingOrderNavigation: any = null;
+  static pendingOrderStatusNavigation: any = null;
   static shouldShowNotifications: boolean = false;
   static shouldShowOrders: boolean = false;
+  static shouldShowOrderStatus: boolean = false;
   static notificationNavigationCallback: ((data: any) => void) | null = null;
   static orderNavigationCallback: ((data: any) => void) | null = null;
 
@@ -212,6 +242,12 @@ export class OneSignalService {
     this.shouldShowOrders = false;
   }
 
+  // Method to clear pending order status navigation
+  static clearPendingOrderStatusNavigation() {
+    this.pendingOrderStatusNavigation = null;
+    this.shouldShowOrderStatus = false;
+  }
+
   // Method to check if there's pending navigation
   static hasPendingNavigation(): boolean {
     return this.shouldShowNotifications && this.pendingAdvertisementNavigation !== null;
@@ -222,6 +258,11 @@ export class OneSignalService {
     return this.shouldShowOrders && this.pendingOrderNavigation !== null;
   }
 
+  // Method to check if there's pending order status navigation
+  static hasPendingOrderStatusNavigation(): boolean {
+    return this.shouldShowOrderStatus && this.pendingOrderStatusNavigation !== null;
+  }
+
   // Method to get pending navigation data
   static getPendingNavigationData() {
     return this.pendingAdvertisementNavigation;
@@ -230,6 +271,11 @@ export class OneSignalService {
   // Method to get pending order data
   static getPendingOrderData() {
     return this.pendingOrderNavigation;
+  }
+
+  // Method to get pending order status data
+  static getPendingOrderStatusData() {
+    return this.pendingOrderStatusNavigation;
   }
 
   // Get user's OneSignal Player ID

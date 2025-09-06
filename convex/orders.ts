@@ -147,6 +147,12 @@ export const updateOrderStatus = mutation({
     rejectionReason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Get the order first to get customer and shop info
+    const order = await ctx.db.get(args.orderId);
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
     const updateData: any = {
       status: args.status,
       updatedAt: Date.now(),
@@ -160,7 +166,22 @@ export const updateOrderStatus = mutation({
       updateData.rejectionReason = args.rejectionReason;
     }
 
+    // Update the order
     await ctx.db.patch(args.orderId, updateData);
+
+    // Schedule customer notification for status changes that customers should know about
+    const notifiableStatuses = ["confirmed","rejected"];
+    if (notifiableStatuses.includes(args.status)) {
+      // Schedule the notification action to run after this mutation completes
+      await ctx.scheduler.runAfter(0, api.orders.sendOrderStatusNotificationToCustomer, {
+        orderId: args.orderId,
+        customerId: order.customerId,
+        shopId: order.shopId,
+        status: args.status as any,
+        deliveryTime: args.deliveryTime,
+        rejectionReason: args.rejectionReason,
+      });
+    }
   },
 });
 
@@ -357,6 +378,204 @@ export const sendOrderNotificationToShopkeeper = action({
 
     } catch (error: unknown) {
       console.error("❌ Error sending order notification:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+        sentCount: 0,
+      };
+    }
+  },
+});
+
+// Send push notification to customer about order status updates
+export const sendOrderStatusNotificationToCustomer = action({
+  args: {
+    orderId: v.id("orders"),
+    customerId: v.id("users"),
+    shopId: v.id("shops"),
+    status: v.union(
+      v.literal("confirmed"), 
+      v.literal("rejected")
+    ),
+    deliveryTime: v.optional(v.number()),
+    rejectionReason: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    sentCount?: number;
+    oneSignalId?: string;
+    customerName?: string;
+    shopName?: string;
+    error?: string;
+    reason?: string;
+  }> => {
+    try {
+      console.log('📱 Sending order status notification for order:', args.orderId, 'Status:', args.status);
+
+      // Get customer details
+      const customer = await ctx.runQuery(api.users.getUser, { userId: args.customerId });
+      if (!customer) {
+        throw new Error("Customer not found");
+      }
+
+      // Get shop details
+      const shop = await ctx.runQuery(api.shops.getShopById, { shopId: args.shopId });
+      if (!shop) {
+        throw new Error("Shop not found");
+      }
+
+      // Check if customer has OneSignal player ID and notifications enabled
+      if (!customer.oneSignalPlayerId || customer.pushNotificationsEnabled === false) {
+        console.log('⚠️ Customer has no OneSignal player ID or notifications disabled:', customer.name);
+        return { success: false, reason: "Customer notifications not enabled" };
+      }
+
+      // Create status-specific notification content
+      let notificationTitle: string;
+      let notificationMessage: string;
+      let notificationIcon = "ic_notification";
+
+      switch (args.status) {
+        case "rejected":
+          notificationTitle = "❌ Order Rejected";
+          notificationMessage = `Sorry, your order from ${shop.name} has been rejected.${args.rejectionReason ? ` Reason: ${args.rejectionReason}` : ''}`;
+          notificationIcon = "ic_cancel";
+          break;
+        
+        case "confirmed":
+          notificationTitle = "📦 Order Confirmation";
+          notificationMessage = `Your order from ${shop.name} will be delivered in ${args.deliveryTime} minutes.`;
+      }
+
+      // Get OneSignal configuration from environment
+      const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
+      const oneSignalRestApiKey = process.env.ONESIGNAL_REST_API_KEY;
+
+      if (!oneSignalAppId || !oneSignalRestApiKey) {
+        console.error('❌ OneSignal configuration missing');
+        throw new Error("OneSignal configuration not found");
+      }
+
+      // Create OneSignal notification payload
+      const notificationPayload: any = {
+        app_id: oneSignalAppId,
+        target_channel: "push",
+        priority: 10,
+        ttl: 7200, // 2 hours TTL for order status notifications
+        
+        // Target the specific customer
+        include_aliases: {
+          onesignal_id: [customer.oneSignalPlayerId]
+        },
+        
+        // Notification content
+        headings: {
+          en: notificationTitle
+        },
+        contents: {
+          en: notificationMessage
+        },
+        
+        // Android specific
+        android_group: "order_status_notifications",
+        android_group_message: {
+          en: "$[notif_count] order updates"
+        },
+        android_led_color: args.status === "rejected" ? "FFFF0000" : "FF00FF00", // Red for rejected, green for others
+        android_sound: "default",
+        android_visibility: 1,
+        small_icon: notificationIcon,
+        
+        // iOS specific
+        ios_badgeType: "SetTo",
+        ios_badgeCount: 1,
+        ios_interruption_level: "active",
+        ios_sound: "default",
+        
+        // Custom data for app handling
+        data: {
+          type: "order_status_update",
+          orderId: args.orderId,
+          shopId: args.shopId,
+          customerId: args.customerId,
+          status: args.status,
+          deliveryTime: args.deliveryTime?.toString(),
+          rejectionReason: args.rejectionReason,
+          deepLink: `goshop://order-status/${args.orderId}`
+        },
+        
+        // Action buttons based on status
+        buttons: args.status === "confirmed" ? [
+          {
+            id: "view_order",
+            text: "View Order",
+            icon: "ic_menu_view"
+          },
+          {
+            id: "contact_shop",
+            text: "Contact Shop",
+            icon: "ic_phone"
+          }
+        ] : args.status === "rejected" ? [
+          {
+            id: "view_order",
+            text: "View Details",
+            icon: "ic_menu_view"
+          },
+          {
+            id: "order_again",
+            text: "Order Again",
+            icon: "ic_refresh"
+          }
+        ] : [
+          {
+            id: "view_order",
+            text: "View Order",
+            icon: "ic_menu_view"
+          }
+        ]
+      };
+
+      console.log('📤 Sending order status notification to customer:', customer.name);
+      console.log('📋 Status notification payload:', JSON.stringify(notificationPayload, null, 2));
+
+      // Send push notification using OneSignal REST API
+      const response: Response = await fetch("https://api.onesignal.com/notifications?c=push", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `key ${oneSignalRestApiKey}`,
+        },
+        body: JSON.stringify(notificationPayload),
+      });
+
+      console.log('📨 OneSignal Response Status:', response.status);
+
+      const result: any = await response.json();
+      console.log('📨 OneSignal Response:', JSON.stringify(result, null, 2));
+
+      if (!response.ok) {
+        console.error('❌ OneSignal API Error:', result);
+        throw new Error(`OneSignal API error (${response.status}): ${result.errors?.[0] || "Unknown error"}`);
+      }
+
+      if (result.errors && result.errors.length > 0) {
+        console.error('❌ OneSignal returned errors:', result.errors);
+        throw new Error(`OneSignal errors: ${result.errors.join(', ')}`);
+      }
+
+      console.log(`✅ Order status notification sent successfully! Recipients: ${result.recipients}, Notification ID: ${result.id}`);
+
+      return {
+        success: true,
+        sentCount: result.recipients || 0,
+        oneSignalId: result.id,
+        customerName: customer.name,
+        shopName: shop.name,
+      };
+
+    } catch (error: unknown) {
+      console.error("❌ Error sending order status notification:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error occurred",
