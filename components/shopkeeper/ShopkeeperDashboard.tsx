@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import ShopImage from "../common/ShopImage";
 import ShopStatusScheduleModal from "./ShopStatusScheduleModal";
 import ShopkeeperSidebar from "./ShopkeeperSidebar";
 import { ShopOrdersModal } from "./ShopOrdersModal";
+import { useOrderNotificationNavigation } from "../../hooks/useOrderNotificationNavigation";
 
 interface User {
   _id: Id<"users">;
@@ -66,6 +67,47 @@ export default function ShopkeeperDashboard({ user, onLogout, onSwitchToCustomer
   
   const shops = useQuery(api.shops.getShopsByOwner, { ownerUid: user._id });
   const updateShopStatus = useMutation(api.shops.updateShopStatus);
+
+  // Order notification navigation hook
+  const { shouldShowOrders, orderData, clearOrderNavigation } = useOrderNotificationNavigation();
+
+  // Handle order notifications when they arrive
+  useEffect(() => {
+    if (shouldShowOrders && orderData) {
+      console.log('🛒 Order notification received in ShopkeeperDashboard:', orderData);
+      
+      // Find the shop that received the order
+      const targetShop = shops?.find(shop => shop._id === orderData.shopId);
+      
+      if (targetShop) {
+        console.log('🏪 Found target shop for order:', targetShop.name);
+        
+        // Show alert and then open orders modal
+        Alert.alert(
+          '🛒 New Order Received!',
+          `You have a new order at ${targetShop.name}\nTotal: ₹${orderData.totalAmount}`,
+          [
+            {
+              text: 'View Later',
+              style: 'cancel',
+              onPress: () => clearOrderNavigation(),
+            },
+            {
+              text: 'View Order',
+              onPress: () => {
+                console.log('📱 Opening orders modal for shop:', targetShop);
+                setSelectedShopForOrders(targetShop);
+                clearOrderNavigation();
+              },
+            },
+          ]
+        );
+      } else {
+        console.warn('⚠️ Target shop not found for order notification');
+        clearOrderNavigation();
+      }
+    }
+  }, [shouldShowOrders, orderData, shops, clearOrderNavigation]);
 
   const handleToggleStatus = (shopId: Id<"shops">, currentStatus: boolean, shopName: string) => {
     setScheduleModal({ shopId, currentStatus, shopName });

@@ -59,6 +59,14 @@ export const getShopsByOwner = query({
   },
 });
 
+// Get shop by ID
+export const getShopById = query({
+  args: { shopId: v.id("shops") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.shopId);
+  },
+});
+
 export const updateShopStatus = mutation({
   args: {
     shopId: v.id("shops"),

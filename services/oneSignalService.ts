@@ -28,32 +28,208 @@ export class OneSignalService {
   }
 
   static setupNotificationHandlers() {
+    console.log('🔔 Setting up OneSignal notification handlers...');
+    
     // Handle notification opened
     OneSignal.Notifications.addEventListener('click', (event) => {
-      console.log('OneSignal: notification clicked:', event);
-      const { notification } = event;
-      if (notification.additionalData) {
-        this.handleNotificationData(notification.additionalData);
+      console.log('🔔 OneSignal: notification clicked!', JSON.stringify(event, null, 2));
+      const { notification, result } = event;
+      
+      console.log('🔔 Notification data:', notification);
+      console.log('🔔 Result data:', result);
+      console.log('🔔 Additional data:', notification.additionalData);
+      
+      // Handle action button clicks
+      if (result.actionId) {
+        console.log('🔘 Notification action clicked:', result.actionId);
+        this.handleActionButtonClick(result.actionId, notification.additionalData);
+      } else {
+        // Handle regular notification click
+        console.log('🔔 Regular notification click detected');
+        if (notification.additionalData) {
+          this.handleNotificationData(notification.additionalData);
+        } else {
+          console.warn('⚠️ No additional data found in notification');
+        }
       }
     });
 
     // Handle notification received while app is in foreground
     OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event) => {
-      console.log('OneSignal: notification received in foreground:', event);
+      console.log('🔔 OneSignal: notification received in foreground:', event);
       // Display the notification
       event.getNotification().display();
     });
+    
+    console.log('✅ OneSignal notification handlers setup complete');
+  }
+
+  static handleActionButtonClick(actionId: string, additionalData: any) {
+    console.log('🔘 Handling action button click:', actionId, additionalData);
+    
+    if (actionId === 'view_offer' && additionalData?.type === 'advertisement') {
+      // Navigate to advertisement (same as regular click)
+      this.handleNotificationData(additionalData);
+    } else if (actionId === 'get_directions' && additionalData?.latitude && additionalData?.longitude) {
+      // Open directions to the shop
+      const { latitude, longitude } = additionalData;
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+      
+      // Try to open in Google Maps app, fallback to browser
+      import('expo-linking').then(({ default: Linking }) => {
+        Linking.openURL(url).catch((err) => {
+          console.error('❌ Error opening directions:', err);
+        });
+      });
+    }
   }
 
   static handleNotificationData(additionalData: any) {
+    console.log('🔔 Handling notification data:', JSON.stringify(additionalData, null, 2));
+    
     // Handle different types of notifications
     if (additionalData.type === 'advertisement') {
-      console.log('Navigate to advertisement:', additionalData.advertisementId);
-      // You can add navigation logic here
+      console.log('📱 Navigate to advertisement:', additionalData.advertisementId);
+      
+      // Store the advertisement data for navigation
+      this.pendingAdvertisementNavigation = {
+        advertisementId: additionalData.advertisementId,
+        shopId: additionalData.shopId,
+        shopName: additionalData.shopName,
+        hasDiscount: additionalData.hasDiscount,
+        discountPercentage: additionalData.discountPercentage,
+        discountText: additionalData.discountText,
+        latitude: additionalData.latitude,
+        longitude: additionalData.longitude,
+      };
+      
+      console.log('📝 Stored navigation data:', this.pendingAdvertisementNavigation);
+      
+      // Set a flag that the app can check
+      this.shouldShowNotifications = true;
+      console.log('🚩 Set shouldShowNotifications to true');
+      
+      // Trigger a custom event for the app to listen to
+      if (this.notificationNavigationCallback) {
+        console.log('📞 Calling notification navigation callback...');
+        this.notificationNavigationCallback(this.pendingAdvertisementNavigation);
+      } else {
+        console.warn('⚠️ No notification navigation callback set! Data will be pending for CustomerHome.');
+        console.log('📋 Navigation data stored for when CustomerHome mounts');
+      }
+      
+    } else if (additionalData.type === 'new_order') {
+      console.log('🛒 New order notification received:', additionalData.orderId);
+      
+      // Store the order data for navigation
+      this.pendingOrderNavigation = {
+        orderId: additionalData.orderId,
+        shopId: additionalData.shopId,
+        customerId: additionalData.customerId,
+        totalAmount: additionalData.totalAmount,
+        orderType: additionalData.orderType,
+      };
+      
+      console.log('📝 Stored order navigation data:', this.pendingOrderNavigation);
+      
+      // Set a flag that the app can check
+      this.shouldShowOrders = true;
+      console.log('🚩 Set shouldShowOrders to true');
+      
+      // Trigger callback for order navigation
+      if (this.orderNavigationCallback) {
+        console.log('📞 Calling order navigation callback...');
+        this.orderNavigationCallback(this.pendingOrderNavigation);
+      } else {
+        console.warn('⚠️ No order navigation callback set! Data will be pending for ShopkeeperHome.');
+        console.log('📋 Order navigation data stored for when ShopkeeperHome mounts');
+      }
+      
     } else if (additionalData.type === 'shop') {
-      console.log('Navigate to shop:', additionalData.shopId);
-      // You can add navigation logic here
+      console.log('🏪 Navigate to shop:', additionalData.shopId);
+      // Handle shop navigation logic here
+    } else if (additionalData.type === 'order') {
+      console.log('📦 Navigate to order:', additionalData.orderId);
+      // Handle order navigation logic here
+    } else {
+      console.warn('⚠️ Unknown notification type:', additionalData.type);
     }
+  }
+
+  // Store pending navigation data
+  static pendingAdvertisementNavigation: any = null;
+  static pendingOrderNavigation: any = null;
+  static shouldShowNotifications: boolean = false;
+  static shouldShowOrders: boolean = false;
+  static notificationNavigationCallback: ((data: any) => void) | null = null;
+  static orderNavigationCallback: ((data: any) => void) | null = null;
+
+  // Method to set navigation callback
+  static setNotificationNavigationCallback(callback: ((data: any) => void) | null) {
+    console.log('📞 Setting notification navigation callback...');
+    this.notificationNavigationCallback = callback;
+    
+    // If there's pending navigation data and a callback is being set, trigger it immediately
+    if (callback && this.hasPendingNavigation()) {
+      console.log('📋 Found pending navigation data, triggering callback immediately');
+      const pendingData = this.getPendingNavigationData();
+      if (pendingData) {
+        setTimeout(() => {
+          console.log('📞 Calling callback with pending data:', pendingData);
+          callback(pendingData);
+        }, 100); // Small delay to ensure the component is ready
+      }
+    }
+  }
+
+  // Method to set order navigation callback
+  static setOrderNavigationCallback(callback: ((data: any) => void) | null) {
+    console.log('📞 Setting order navigation callback...');
+    this.orderNavigationCallback = callback;
+    
+    // If there's pending order data and a callback is being set, trigger it immediately
+    if (callback && this.hasPendingOrderNavigation()) {
+      console.log('📋 Found pending order data, triggering callback immediately');
+      const pendingData = this.getPendingOrderData();
+      if (pendingData) {
+        setTimeout(() => {
+          console.log('📞 Calling order callback with pending data:', pendingData);
+          callback(pendingData);
+        }, 100); // Small delay to ensure the component is ready
+      }
+    }
+  }
+
+  // Method to clear pending navigation
+  static clearPendingNavigation() {
+    this.pendingAdvertisementNavigation = null;
+    this.shouldShowNotifications = false;
+  }
+
+  // Method to clear pending order navigation
+  static clearPendingOrderNavigation() {
+    this.pendingOrderNavigation = null;
+    this.shouldShowOrders = false;
+  }
+
+  // Method to check if there's pending navigation
+  static hasPendingNavigation(): boolean {
+    return this.shouldShowNotifications && this.pendingAdvertisementNavigation !== null;
+  }
+
+  // Method to check if there's pending order navigation
+  static hasPendingOrderNavigation(): boolean {
+    return this.shouldShowOrders && this.pendingOrderNavigation !== null;
+  }
+
+  // Method to get pending navigation data
+  static getPendingNavigationData() {
+    return this.pendingAdvertisementNavigation;
+  }
+
+  // Method to get pending order data
+  static getPendingOrderData() {
+    return this.pendingOrderNavigation;
   }
 
   // Get user's OneSignal Player ID

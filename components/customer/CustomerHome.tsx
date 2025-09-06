@@ -17,7 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from 'expo-location';
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import ShopCard from "./ShopCard";
@@ -29,11 +29,19 @@ import CustomerSidebar from "./CustomerSidebar";
 import NotificationsModal from "./NotificationsModal";
 import CustomerOrdersModal from "./CustomerOrdersModal";
 import { User, CartItem } from "../../types/interfaces";
+import { useNotificationNavigation } from "../../hooks/useNotificationNavigation";
+import { OneSignalService } from "../../services/oneSignalService";
 
 interface CustomerHomeProps {
   user: User;
   onLogout: () => void;
   onSwitchToShopkeeper?: () => void;
+}
+
+// Extend global type for pendingAdvertisementId
+declare global {
+  // You can adjust the type as needed (string | null is typical for an ID)
+  var pendingAdvertisementId: string | null | undefined;
 }
 
 // Constants outside the component
@@ -83,6 +91,29 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   const insets = useSafeAreaInsets();
 
   // Load cart from AsyncStorage on mount
+  // In CustomerHome.tsx, add this useEffect after your existing useEffects
+useEffect(() => {
+  // Check for pending advertisement from deep link
+  const checkPendingAdvertisement = () => {
+    if (global.pendingAdvertisementId) {
+      const adId = global.pendingAdvertisementId;
+      console.log('🎯 Found pending advertisement:', adId);
+      
+      // Clear the pending ID
+      global.pendingAdvertisementId = null;
+      
+      // Open notifications modal with specific advertisement
+      navigateToNotification('advertisement', adId);
+      setNotificationsVisible(true);
+    }
+  };
+
+  // Check immediately and also set an interval to check periodically
+  checkPendingAdvertisement();
+  const interval = setInterval(checkPendingAdvertisement, 500);
+
+  return () => clearInterval(interval);
+}, [navigateToNotification]);
   useEffect(() => {
     (async () => {
       try {
@@ -152,6 +183,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
 
   // Order creation mutation
   const createOrder = useMutation(api.orders.createOrder);
+  const sendOrderNotification = useAction(api.orders.sendOrderNotificationToShopkeeper);
 
   const handleBookItems = useCallback(async (items: CartItem[]) => {
     if (!user) {
@@ -191,7 +223,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
                 return;
               }
 
-              await createOrder({
+              const orderId = await createOrder({
                 shopId,
                 customerId: user._id,
                 items: items.map(item => ({
@@ -209,6 +241,29 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
                   lng: userLocation.longitude,
                 },
               });
+
+              // Send push notification to shopkeeper
+              try {
+                console.log('📤 Sending order notification for order:', orderId);
+                await sendOrderNotification({
+                  orderId,
+                  shopId,
+                  customerId: user._id,
+                  items: items.map(item => ({
+                    itemId: item._id,
+                    name: item.name,
+                    quantity: item.quantity,
+                    price: item.price,
+                    priceDescription: item.priceDescription,
+                  })),
+                  totalAmount,
+                  orderType: "delivery",
+                });
+                console.log('✅ Order notification sent successfully');
+              } catch (notificationError) {
+                console.error('⚠️ Failed to send order notification:', notificationError);
+                // Don't block the user experience if notification fails
+              }
 
               Alert.alert('Success', 'Your order has been placed successfully!');
               
@@ -232,7 +287,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
         }
       ]
     );
-  }, [user, userLocation, createOrder]);
+  }, [user, userLocation, createOrder, sendOrderNotification]);
 
   const handleViewOrders = useCallback(() => {
     setOrdersVisible(true);
@@ -291,6 +346,42 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [ordersVisible, setOrdersVisible] = useState(false);
+
+  // Notification navigation hook
+  const { shouldShowNotifications, navigationData, clearNavigation } = useNotificationNavigation();
+
+  // Handle notification navigation
+  useEffect(() => {
+    console.log('🔔 CustomerHome notification effect triggered');
+    console.log('🔔 shouldShowNotifications:', shouldShowNotifications);
+    console.log('🔔 navigationData:', navigationData);
+    
+    if (shouldShowNotifications && navigationData) {
+      console.log('🔔 Opening notifications modal due to push notification:', navigationData);
+      setNotificationsVisible(true);
+    }
+  }, [shouldShowNotifications, navigationData]);
+
+  // Debug function to test notification navigation
+  // const testNotificationNavigation = () => {
+  //   console.log('🧪 Testing notification navigation...');
+  //   const testData = {
+  //     advertisementId: "test-ad-id",
+  //     shopId: "test-shop-id", 
+  //     shopName: "Test Shop",
+  //     hasDiscount: true,
+  //     discountPercentage: 20,
+  //     discountText: "20% OFF",
+  //     latitude: 40.7128,
+  //     longitude: -74.0060,
+  //   };
+    
+  //   // Simulate OneSignal notification click
+  //   OneSignalService.handleNotificationData({
+  //     type: "advertisement",
+  //     ...testData
+  //   });
+  // };
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -906,6 +997,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
             >
               <Ionicons name="notifications-outline" size={20} color="#3B82F6" />
             </TouchableOpacity>
+            {/* Debug Test Button - Remove after testing */}
             <TouchableOpacity 
               onPress={() => setSidebarVisible(true)} 
               style={styles.compactMenuButton}
@@ -1306,9 +1398,13 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
 
       <NotificationsModal
         visible={notificationsVisible}
-        onClose={() => setNotificationsVisible(false)}
+        onClose={() => {
+          setNotificationsVisible(false);
+          clearNavigation();
+        }}
         userId={user._id}
         onViewShop={handleViewShop}
+        targetAdvertisementId={navigationData?.advertisementId as Id<"advertisements"> || null}
       />
 
       <CustomerOrdersModal
@@ -2016,3 +2112,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+function navigateToNotification(arg0: string, adId: string) {
+  throw new Error("Function not implemented.");
+}

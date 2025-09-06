@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -23,23 +23,46 @@ interface NotificationsModalProps {
   onClose: () => void;
   userId: Id<"users">;
   onViewShop: (shopId: Id<"shops">) => void;
+  targetAdvertisementId?: Id<"advertisements"> | null; // Add this prop to highlight specific advertisement
 }
 
 export default function NotificationsModal({ 
   visible, 
   onClose, 
   userId, 
-  onViewShop 
+  onViewShop,
+  targetAdvertisementId
 }: NotificationsModalProps) {
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
   const [fullscreenImageId, setFullscreenImageId] = useState<Id<"_storage"> | null>(null);
   const [videoModalVisible, setVideoModalVisible] = useState(false);
   const [selectedVideoId, setSelectedVideoId] = useState<Id<"_storage"> | null>(null);
   
+  const flatListRef = useRef<FlatList>(null);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const notifications = useQuery(api.advertisements.getNotificationsByUser, { 
     userId 
   });
+
+  // Auto-scroll to target advertisement when modal opens
+  useEffect(() => {
+    if (visible && targetAdvertisementId && notifications && notifications.length > 0) {
+      const targetIndex = notifications.findIndex(
+        (notification: any) => notification.advertisement?._id === targetAdvertisementId
+      );
+      
+      if (targetIndex >= 0 && flatListRef.current) {
+        // Delay scroll to ensure modal is fully rendered
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({
+            index: targetIndex,
+            animated: true,
+            viewPosition: 0.2, // Show the target ad at 20% from top
+          });
+        }, 300);
+      }
+    }
+  }, [visible, targetAdvertisementId, notifications]);
 
   const handleImagePress = (imageId: Id<"_storage">) => {
     setFullscreenImageId(imageId);
@@ -100,17 +123,26 @@ export default function NotificationsModal({
     }
   };
 
-  const renderNotificationItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.adCard}
-      onPress={() => handleNotificationPress(item)}
-      activeOpacity={0.8}
-    >
-      {/* Professional Ad Badge */}
-      <View style={styles.adBadge}>
-        <Ionicons name="megaphone" size={12} color="#FFFFFF" />
-        <Text style={styles.adBadgeText}>SPECIAL OFFER</Text>
-      </View>
+  const renderNotificationItem = ({ item }: { item: any }) => {
+    // Check if this is the target advertisement to highlight
+    const isTargetAd = targetAdvertisementId && item.advertisement?._id === targetAdvertisementId;
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.adCard,
+          isTargetAd && styles.targetAdCard // Add highlight style for target ad
+        ]}
+        onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.8}
+      >
+        {/* Professional Ad Badge */}
+        <View style={[styles.adBadge, isTargetAd && styles.targetAdBadge]}>
+          <Ionicons name="megaphone" size={12} color="#FFFFFF" />
+          <Text style={styles.adBadgeText}>
+            {isTargetAd ? "📍 FROM NOTIFICATION" : "SPECIAL OFFER"}
+          </Text>
+        </View>
 
       {/* Shop Info Header */}
       <View style={styles.adHeader}>
@@ -180,7 +212,8 @@ export default function NotificationsModal({
         )}
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   const renderDetailView = () => {
     if (!selectedNotification) return null;
@@ -410,11 +443,22 @@ export default function NotificationsModal({
                 </View>
               ) : (
                 <FlatList
+                  ref={flatListRef}
                   data={notifications}
                   renderItem={renderNotificationItem}
                   keyExtractor={(item) => item._id}
                   contentContainerStyle={styles.listContainer}
                   showsVerticalScrollIndicator={false}
+                  onScrollToIndexFailed={(info) => {
+                    // Handle scroll failure gracefully
+                    console.log('Scroll to index failed:', info);
+                    setTimeout(() => {
+                      flatListRef.current?.scrollToIndex({
+                        index: Math.min(info.index, notifications.length - 1),
+                        animated: true,
+                      });
+                    }, 100);
+                  }}
                 />
               )}
             </>
@@ -796,6 +840,20 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "600",
     letterSpacing: 0.3,
+  },
+  // Target Advertisement Highlighting Styles
+  targetAdCard: {
+    borderColor: "#3B82F6",
+    borderWidth: 2,
+    backgroundColor: "#F0F9FF",
+    shadowColor: "#3B82F6",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  targetAdBadge: {
+    backgroundColor: "#3B82F6",
+    paddingHorizontal: 8,
   },
   adHeader: {
     flexDirection: "row",

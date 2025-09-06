@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Image } from "expo-image";
@@ -32,11 +32,29 @@ export default function AdvertisementHistoryModal({
   shopLocation,
   onEditAdvertisement,
 }: AdvertisementHistoryModalProps) {
-  const [loading, setLoading] = useState(false);
+  const [loadingAds, setLoadingAds] = useState<Set<string>>(new Set());
+  const [loading, setloading] = useState(false)
 
   const advertisements = useQuery(api.advertisements.getAdvertisementsByShop, { shopId });
   const deleteAdvertisement = useMutation(api.advertisements.deleteAdvertisement);
   const sendNotifications = useMutation(api.advertisements.sendNotificationsToNearbyUsers);
+  const sendPushNotifications = useAction(api.advertisements.sendPushNotificationToNearbyUsers);
+
+  // Helper functions for managing loading state per advertisement
+  const setAdLoading = (adId: string, loading: boolean) => {
+    setLoadingAds(prev => {
+      const newSet = new Set(prev);
+      if (loading) {
+        newSet.add(adId);
+      } else {
+        newSet.delete(adId);
+      }
+      return newSet;
+    });
+  };
+
+  const isAdLoading = (adId: string) => loadingAds.has(adId);
+  const isAnyAdLoading = loadingAds.size > 0;
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString("en-US", {
@@ -59,13 +77,13 @@ export default function AdvertisementHistoryModal({
           style: "destructive",
           onPress: async () => {
             try {
-              setLoading(true);
+              setAdLoading(advertisementId, true);
               await deleteAdvertisement({ advertisementId });
               Alert.alert("Success", "Advertisement deleted successfully!");
             } catch (error) {
               Alert.alert("Error", "Failed to delete advertisement");
             } finally {
-              setLoading(false);
+              setAdLoading(advertisementId, false);
             }
           },
         },
@@ -76,14 +94,17 @@ export default function AdvertisementHistoryModal({
   const handleNotifyAgain = async (advertisement: any) => {
     Alert.alert(
       "Send Notification Again",
-      `Send this advertisement to nearby users again?\n\n"${advertisement.message.substring(0, 100)}..."`,
+      `Send this advertisement to nearby users again?\n\n"${advertisement.message.substring(0, 100)}...".`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Send",
           onPress: async () => {
             try {
-              setLoading(true);
+              setAdLoading(advertisement._id, true);
+              
+              // Send in-app notifications first
+              console.log('📨 Sending in-app notifications...');
               const notificationCount = await sendNotifications({
                 advertisementId: advertisement._id,
                 shopLat: shopLocation.lat,
@@ -91,14 +112,35 @@ export default function AdvertisementHistoryModal({
                 radiusKm: 5,
               });
 
-              Alert.alert(
-                "Success",
-                `Notification sent to ${notificationCount} nearby users!`
-              );
+              // Send push notifications
+              console.log('🔔 Sending push notifications...');
+              const pushResult = await sendPushNotifications({
+                advertisementId: advertisement._id,
+                shopId: shopId,
+                shopLat: shopLocation.lat,
+                shopLng: shopLocation.lng,
+                radiusKm: 5,
+              });
+
+              if (pushResult.success) {
+                Alert.alert(
+                  "✅ Success",
+                  'Notification sended succefully'
+                );
+              } else {
+                Alert.alert(
+                  "⚠️ Partial Success", 
+                  `In-app notifications sent to ${notificationCount} users.\n\nPush notifications failed: ${pushResult.error || 'Unknown error'}`
+                );
+              }
             } catch (error) {
-              Alert.alert("Error", "Failed to send notifications");
+              console.error('❌ Error sending notifications:', error);
+              Alert.alert(
+                "❌ Error", 
+                `Failed to send notifications.\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}`
+              );
             } finally {
-              setLoading(false);
+              setAdLoading(advertisement._id, false);
             }
           },
         },
@@ -172,27 +214,39 @@ export default function AdvertisementHistoryModal({
               onEditAdvertisement(advertisement);
               onClose();
             }}
-            disabled={loading}
+            disabled={isAdLoading(advertisement._id)}
           >
             <Ionicons name="create-outline" size={16} color="#2563EB" />
             <Text style={styles.actionButtonText}>Edit</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionButton, styles.notifyButton]}
+            style={[
+              styles.actionButton, 
+              styles.notifyButton,
+              isAdLoading(advertisement._id) && styles.disabledButton
+            ]}
             onPress={() => handleNotifyAgain(advertisement)}
-            disabled={loading}
+            disabled={isAdLoading(advertisement._id)}
           >
-            <Ionicons name="notifications-outline" size={16} color="#16A34A" />
+            {isAdLoading(advertisement._id) ? (
+              <Ionicons name="hourglass-outline" size={16} color="#16A34A" />
+            ) : (
+              <Ionicons name="notifications-outline" size={16} color="#16A34A" />
+            )}
             <Text style={[styles.actionButtonText, styles.notifyButtonText]}>
-              Notify Again
+              {isAdLoading(advertisement._id) ? "Sending..." : "Notify Again"}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
+            style={[
+              styles.actionButton, 
+              styles.deleteButton,
+              isAdLoading(advertisement._id) && styles.disabledButton
+            ]}
             onPress={() => handleDeleteAdvertisement(advertisement._id, advertisement.message)}
-            disabled={loading}
+            disabled={isAdLoading(advertisement._id)}
           >
             <Ionicons name="trash-outline" size={16} color="#DC2626" />
             <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Delete</Text>
@@ -442,5 +496,8 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: "#DC2626",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

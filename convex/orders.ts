@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action } from "./_generated/server";
+import { api } from "./_generated/api";
 
 // Create a new order when customer books items
 export const createOrder = mutation({
@@ -35,6 +36,7 @@ export const createOrder = mutation({
       placedAt: Date.now(),
       createdAt: Date.now(),
     });
+
     return orderId;
   },
 });
@@ -197,5 +199,169 @@ export const cancelOrder = mutation({
       status: "cancelled",
       updatedAt: Date.now(),
     });
+  },
+});
+
+// Send push notification to shopkeeper when new order is received
+export const sendOrderNotificationToShopkeeper = action({
+  args: {
+    orderId: v.id("orders"),
+    shopId: v.id("shops"),
+    customerId: v.id("users"),
+    items: v.array(v.object({
+      itemId: v.id("items"),
+      name: v.string(),
+      quantity: v.number(),
+      price: v.optional(v.number()),
+      priceDescription: v.optional(v.string()),
+    })),
+    totalAmount: v.number(),
+    orderType: v.union(v.literal("pickup"), v.literal("delivery")),
+  },
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    sentCount?: number;
+    oneSignalId?: string;
+    shopkeeperName?: string;
+    customerName?: string;
+    error?: string;
+    reason?: string;
+  }> => {
+    try {
+      console.log('🛒 Sending order notification for order:', args.orderId);
+
+      // Get shop details
+      const shop = await ctx.runQuery(api.shops.getShopById, { shopId: args.shopId });
+      if (!shop) {
+        throw new Error("Shop not found");
+      }
+
+      // Get shopkeeper details
+      const shopkeeper = await ctx.runQuery(api.users.getUser, { userId: shop.ownerUid });
+      if (!shopkeeper) {
+        throw new Error("Shopkeeper not found");
+      }
+
+      // Get customer details
+      const customer = await ctx.runQuery(api.users.getUser, { userId: args.customerId });
+      if (!customer) {
+        throw new Error("Customer not found");
+      }
+
+      // Check if shopkeeper has OneSignal player ID and notifications enabled
+      if (!shopkeeper.oneSignalPlayerId || shopkeeper.pushNotificationsEnabled === false) {
+        console.log('⚠️ Shopkeeper has no OneSignal player ID or notifications disabled:', shopkeeper.name);
+        return { success: false, reason: "Shopkeeper notifications not enabled" };
+      }
+
+      // Format item list for the notification
+      const itemsList = args.items.map(item => 
+        `• ${item.name} x${item.quantity}${item.price ? ` (₹${item.price})` : ''}`
+      ).join('\n');
+
+      // Create notification message
+      const customerName: string = customer.name || "A customer";
+      const shopName = shop.name;
+      const orderTypeText = args.orderType === "delivery" ? "Delivery" : "Pickup";
+      
+      const notificationTitle = `🛒 New Order Received!`;
+      const notificationMessage: string = `${customerName} placed a ${orderTypeText.toLowerCase()} order at ${shopName}\n\nItems:\n${itemsList}\n\nTotal: ₹${args.totalAmount}`;
+
+      // Get OneSignal configuration from environment
+      const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
+      const oneSignalRestApiKey = process.env.ONESIGNAL_REST_API_KEY;
+
+      if (!oneSignalAppId || !oneSignalRestApiKey) {
+        console.error('❌ OneSignal configuration missing');
+        throw new Error("OneSignal configuration not found");
+      }
+
+      // Create OneSignal notification payload
+      const notificationPayload: any = {
+        app_id: oneSignalAppId,
+        target_channel: "push",
+        priority: 10,
+        ttl: 3600, // 1 hour TTL for order notifications
+        
+        // Target the specific shopkeeper
+        include_aliases: {
+          onesignal_id: [shopkeeper.oneSignalPlayerId]
+        },
+        
+        // Notification content
+        headings: {
+          en: notificationTitle
+        },
+        contents: {
+          en: notificationMessage
+        },
+        
+        // Android specific
+        android_group: "order_notifications",
+        android_group_message: {
+          en: "$[notif_count] new orders"
+        },
+        android_led_color: "FF00FF00", // Green LED for new orders
+        android_sound: "notification_sound",
+        android_visibility: 1, // Public visibility
+        
+        // Custom data for app handling
+        data: {
+          type: "new_order",
+          orderId: args.orderId,
+          shopId: args.shopId,
+          customerId: args.customerId,
+          totalAmount: args.totalAmount.toString(),
+          orderType: args.orderType,
+          deepLink: `goshop://order/${args.orderId}`
+        },
+      };
+
+      console.log('📤 Sending order notification to shopkeeper:', shopkeeper.name);
+      console.log('📋 Notification payload:', JSON.stringify(notificationPayload, null, 2));
+
+      // Send push notification using OneSignal REST API
+      const response: Response = await fetch("https://api.onesignal.com/notifications?c=push", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `key ${oneSignalRestApiKey}`,
+        },
+        body: JSON.stringify(notificationPayload),
+      });
+
+      console.log('📨 OneSignal Response Status:', response.status);
+
+      const result: any = await response.json();
+      console.log('📨 OneSignal Response:', JSON.stringify(result, null, 2));
+
+      if (!response.ok) {
+        console.error('❌ OneSignal API Error:', result);
+        throw new Error(`OneSignal API error (${response.status}): ${result.errors?.[0] || "Unknown error"}`);
+      }
+
+      if (result.errors && result.errors.length > 0) {
+        console.error('❌ OneSignal returned errors:', result.errors);
+        throw new Error(`OneSignal errors: ${result.errors.join(', ')}`);
+      }
+
+      console.log(`✅ Order notification sent successfully! Recipients: ${result.recipients}, Notification ID: ${result.id}`);
+
+      return {
+        success: true,
+        sentCount: result.recipients || 0,
+        oneSignalId: result.id,
+        shopkeeperName: shopkeeper.name,
+        customerName: customer.name,
+      };
+
+    } catch (error: unknown) {
+      console.error("❌ Error sending order notification:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+        sentCount: 0,
+      };
+    }
   },
 });

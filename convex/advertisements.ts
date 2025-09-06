@@ -600,21 +600,74 @@ export const sendPushNotificationToNearbyUsers = action({
         hasDiscount: advertisement.hasDiscount,
         discountPercentage: advertisement.discountPercentage,
         discountText: advertisement.discountText,
-      };
 
-      const notificationPayload = {
+      }
+      // Get the first image URL if advertisement has images
+      let imageUrl = null;
+      if (advertisement.imageIds && advertisement.imageIds.length > 0) {
+        try {
+          imageUrl = await ctx.storage.getUrl(advertisement.imageIds[0]);
+          console.log('🖼️ Advertisement image URL:', imageUrl);
+        } catch (error) {
+          console.error('❌ Error getting image URL:', error);
+        }
+      }
+
+      // Base notification payload
+      const notificationPayload: any = {
         app_id: oneSignalAppId,
         target_channel: "push",
         include_aliases: {
-    "onesignal_id": subscribedPlayerIds
-        },// 
+          "onesignal_id": subscribedPlayerIds
+        },
         headings: { en: title },
         contents: { en: message },
         data: additionalData,
         android_accent_color: "FF9C27B0",
         small_icon: "ic_notification",
-        large_icon: "ic_launcher",
+        large_icon: imageUrl || "ic_launcher",
+        priority: 10,
+        ttl: 259200,
+        // android_channel_id: "goshop_advertisements",
+        // android_group: "goshop_offers",
+        // Add click action to open advertisement in app (temporarily disabled to prevent hanging)
+        // url: `goshop://advertisement/${advertisement._id}`,
+        // web_url: `https://goshop.app/advertisement/${advertisement._id}`,
       };
+
+      // Add rich media if image is available
+      if (imageUrl) {
+        notificationPayload.big_picture = imageUrl;
+        notificationPayload.ios_attachments = {
+          "image": imageUrl
+        };
+        notificationPayload.android_large_icon = imageUrl;
+        notificationPayload.chrome_web_image = imageUrl;
+        
+        // Enhanced message with image indicator
+        notificationPayload.contents.en = `📷 ${message}`;
+      }
+
+      // Add action buttons
+      notificationPayload.buttons = [
+        {
+          id: "view_offer",
+          text: "View Offer",
+          icon: "ic_menu_view"
+        },
+        {
+          id: "get_directions", 
+          text: "Get Directions",
+          icon: "ic_menu_directions"
+        }
+      ];
+
+      // Add discount badge if applicable
+      if (advertisement.hasDiscount && advertisement.discountPercentage) {
+        notificationPayload.android_led_color = "FFFF0000";
+        notificationPayload.android_sound = "notification_sound";
+        notificationPayload.contents.en = `💰 ${advertisement.discountPercentage}% OFF! ${message}`;
+      }
 
       console.log('📤 Sending OneSignal notification payload:', JSON.stringify(notificationPayload, null, 2));
 
