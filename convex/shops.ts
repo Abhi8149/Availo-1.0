@@ -12,7 +12,7 @@ export const createShop = mutation({
       address: v.optional(v.string()),
     }),
     isOpen: v.boolean(),
-    mobileNumber: v.optional(v.string()),
+    mobileNumber:v.string(),
     shopImageId: v.optional(v.id("_storage")), // Keep for backward compatibility
     shopImageIds: v.optional(v.array(v.id("_storage"))), // Multiple images
     estimatedTime: v.optional(v.object({
@@ -20,10 +20,10 @@ export const createShop = mutation({
       minutes: v.number(),
       action: v.union(v.literal("opening"), v.literal("closing")),
     })),
-    businessHours: v.optional(v.object({
+    businessHours:v.object({
       openTime: v.string(), // Format: "09:00"
       closeTime: v.string(), // Format: "18:00"
-    })),
+    }),
     hasDelivery: v.optional(v.boolean()),
     deliveryRange: v.optional(v.number()),
   },
@@ -99,10 +99,10 @@ export const updateShop = mutation({
     mobileNumber: v.optional(v.string()),
     shopImageId: v.optional(v.id("_storage")), // Keep for backward compatibility
     shopImageIds: v.optional(v.array(v.id("_storage"))), // Multiple images
-    businessHours: v.optional(v.object({
+    businessHours: v.object({
       openTime: v.string(), // Format: "09:00"
       closeTime: v.string(), // Format: "18:00"
-    })),
+    }),
     hasDelivery: v.optional(v.boolean()),
     deliveryRange: v.optional(v.number()),
   },

@@ -28,7 +28,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-       "intentFilters": [
+      "intentFilters": [
         {
           "action": "VIEW",
           "data": [
@@ -72,7 +72,7 @@
       [
         "onesignal-expo-plugin",
         {
-          "mode": "development"
+          "mode": "production"
         }
       ]
     ],
@@ -81,19 +81,35 @@
     },
     "extra": {
       "EXPO_PUBLIC_LOCATIONIQ_API_KEY": "pk.2e5d70a914f544ff9b993af9ac29d478",
-      "EXPO_PUBLIC_ONESIGNAL_APP_ID":"3de46348-ec6d-4e68-8a4c-81536e45c73c",
-      "EXPO_PUBLIC_ONESIGNAL_REST_API_KEY":"os_v2_app_hxsggshmnvhgrcsmqfjw4rohhsqkzpm3jujusr4susrsp5janrsm6xhcx23tsyt63wopr44ycrxp6mnzpjhe3z2hdiwmjg5cktuwnfy",
+      "EXPO_PUBLIC_ONESIGNAL_APP_ID": "3de46348-ec6d-4e68-8a4c-81536e45c73c",
       "router": {},
       "eas": {
-        "projectId": "40fcdf87-8551-4976-8beb-69db52b62053"
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "OneSignalNotificationServiceExtension",
+                  "bundleIdentifier": "com.shopstatus.app.OneSignalNotificationServiceExtension",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.shopstatus.app.onesignal"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "18433df7-96c1-40a5-a642-08b5a48e47ff"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/40fcdf87-8551-4976-8beb-69db52b62053"
+      "url": "https://u.expo.dev/18433df7-96c1-40a5-a642-08b5a48e47ff"
     },
-    "owner": "kartik05"
+    "owner": "abhijyoti"
   }
 }

@@ -571,7 +571,10 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
         const closeTime = convertTo24Hour(closingHours, closingMinutes, closingPeriod);
         businessHours = { openTime, closeTime };
       }
-
+      if(businessHours===undefined){
+      Alert.alert("Error", "Please fill the business hours in which you operate");
+      return;
+      }
       // Validate delivery range if delivery is enabled
       if (hasDelivery && (!deliveryRange || isNaN(parseFloat(deliveryRange)) || parseFloat(deliveryRange) <= 0)) {
         Alert.alert("Error", "Please enter a valid delivery range");

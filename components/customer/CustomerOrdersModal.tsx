@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { sendOrderNotificationToShopkeeper } from "@/convex/orders";
 
 const { width } = Dimensions.get("window");
 
@@ -148,9 +149,25 @@ export default function CustomerOrdersModal({
         { text: "No", style: "cancel" },
         {
           text: "Yes, Mark Complete",
+
           onPress: async () => {
             try {
               await updateOrderStatus({ orderId, status: "completed" });
+                //   await sendOrderNotification({
+                //   orderId,
+                //   shopId,
+                //   customerId: user._id,
+                //   items: items.map(item => ({
+                //     itemId: item._id,
+                //     name: item.name,
+                //     quantity: item.quantity,
+                //     price: item.price,
+                //     priceDescription: item.priceDescription,
+                //   })),
+                //   status:'pending',
+                //   totalAmount,
+                //   orderType: "delivery",
+                // });
               Alert.alert("Success", "Order marked as completed");
             } catch (error) {
               Alert.alert("Error", "Failed to update order status");

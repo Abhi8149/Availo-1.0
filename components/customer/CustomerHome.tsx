@@ -233,6 +233,7 @@ useEffect(() => {
                   price: item.price,
                   priceDescription: item.priceDescription,
                 })),
+                status:'pending',
                 totalAmount,
                 orderType: "delivery", // Set as delivery by default, can be enhanced with user choice
                 deliveryAddress: {
@@ -256,6 +257,7 @@ useEffect(() => {
                     price: item.price,
                     priceDescription: item.priceDescription,
                   })),
+                  status:'pending',
                   totalAmount,
                   orderType: "delivery",
                 });
@@ -266,15 +268,6 @@ useEffect(() => {
               }
 
               Alert.alert('Success', 'Your order has been placed successfully!');
-              
-              // Additional alert for order tracking
-              setTimeout(() => {
-                Alert.alert(
-                  'Track Your Order', 
-                  'Check your order status in Your Orders option',
-                  [{ text: 'OK' }]
-                );
-              }, 1000);
               
               // Remove booked items from cart
               const itemIds = items.map(item => item._id);

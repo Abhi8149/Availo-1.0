@@ -25,7 +25,7 @@ interface OrderDetailsModalProps {
   visible: boolean;
   onClose: () => void;
   order: any;
-  onUpdateStatus: (orderId: Id<"orders">, status: "pending" | "confirmed" | "preparing" | "ready" | "rejected" | "completed", deliveryTime?: number, rejectionReason?: string) => void;
+  onUpdateStatus: (orderId: Id<"orders">, status: "pending" | "confirmed" |"rejected" | "completed", deliveryTime?: number, rejectionReason?: string) => void;
   openDirections: (customerLocation?: { lat: number; lng: number; address?: string }) => void;
   isHistoryMode?: boolean;
 }
@@ -81,7 +81,7 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
   // Get shop location for distance calculation
   const shop = useQuery(api.shops.getShop, visible && shopId ? { shopId } : "skip");
 
-  const handleStatusUpdate = async (orderId: Id<"orders">, status: "pending" | "confirmed" | "preparing" | "ready" | "rejected" | "completed", deliveryTime?: number, rejectionReason?: string) => {
+  const handleStatusUpdate = async (orderId: Id<"orders">, status: "pending" | "confirmed" | "rejected" | "completed", deliveryTime?: number, rejectionReason?: string) => {
     try {
       await updateOrderStatus({ 
         orderId, 
@@ -419,28 +419,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                     <Text style={styles.rejectButtonText}>Cancel Order</Text>
                   </TouchableOpacity>
                 </View>
-              )}
-
-              {order.status === "preparing" && (
-                <TouchableOpacity
-                  style={styles.deliverButton}
-                  onPress={async () => {
-                    await onUpdateStatus(order._id, "ready");
-                  }}
-                >
-                  <Text style={styles.deliverButtonText}>Mark as Ready</Text>
-                </TouchableOpacity>
-              )}
-
-              {order.status === "ready" && (
-                <TouchableOpacity
-                  style={styles.completeButton}
-                  onPress={async () => {
-                    await onUpdateStatus(order._id, "completed");
-                  }}
-                >
-                  <Text style={styles.completeButtonText}>Mark as Delivered</Text>
-                </TouchableOpacity>
               )}
             </>
           )}

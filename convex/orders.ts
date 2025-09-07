@@ -14,6 +14,13 @@ export const createOrder = mutation({
       price: v.optional(v.number()),
       priceDescription: v.optional(v.string()),
     })),
+    status:v.union(
+      v.literal('pending'),
+      v.literal('confirmed'),
+      v.literal('cancelled'),
+      v.literal('completed'),
+      v.literal('rejected')
+    ),
     totalAmount: v.number(), // Changed from optional to required
     orderType: v.optional(v.union(v.literal("pickup"), v.literal("delivery"))),
     deliveryAddress: v.optional(v.object({
@@ -137,8 +144,6 @@ export const updateOrderStatus = mutation({
     status: v.union(
       v.literal("pending"), 
       v.literal("confirmed"), 
-      v.literal("preparing"), 
-      v.literal("ready"), 
       v.literal("completed"), 
       v.literal("rejected"), 
       v.literal("cancelled")
@@ -182,6 +187,19 @@ export const updateOrderStatus = mutation({
         rejectionReason: args.rejectionReason,
       });
     }
+
+    // Schedule shopkeeper notification when customer marks order as completed
+    if (args.status === "completed") {
+      await ctx.scheduler.runAfter(0, api.orders.sendOrderNotificationToShopkeeper, {
+        orderId: args.orderId,
+        shopId: order.shopId,
+        customerId: order.customerId,
+        items: order.items,
+        status: "completed" as any,
+        totalAmount: order.totalAmount,
+        orderType: order.orderType,
+      });
+    }
   },
 });
 
@@ -216,9 +234,27 @@ export const cancelOrder = mutation({
     orderId: v.id("orders"),
   },
   handler: async (ctx, args) => {
+    // Get the order first to get customer and shop info for notification
+    const order = await ctx.db.get(args.orderId);
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    // Update the order status
     await ctx.db.patch(args.orderId, {
       status: "cancelled",
       updatedAt: Date.now(),
+    });
+
+    // Schedule notification to shopkeeper about order cancellation
+    await ctx.scheduler.runAfter(0, api.orders.sendOrderNotificationToShopkeeper, {
+      orderId: args.orderId,
+      shopId: order.shopId,
+      customerId: order.customerId,
+      items: order.items,
+      status: "cancelled" as any,
+      totalAmount: order.totalAmount,
+      orderType: order.orderType,
     });
   },
 });
@@ -236,6 +272,11 @@ export const sendOrderNotificationToShopkeeper = action({
       price: v.optional(v.number()),
       priceDescription: v.optional(v.string()),
     })),
+    status:v.union(
+          v.literal('completed'),
+          v.literal('cancelled'),
+          v.literal('pending')
+    ),
     totalAmount: v.number(),
     orderType: v.union(v.literal("pickup"), v.literal("delivery")),
   },
@@ -285,8 +326,31 @@ export const sendOrderNotificationToShopkeeper = action({
       const shopName = shop.name;
       const orderTypeText = args.orderType === "delivery" ? "Delivery" : "Pickup";
       
-      const notificationTitle = `🛒 New Order Received!`;
-      const notificationMessage: string = `${customerName} placed a ${orderTypeText.toLowerCase()} order at ${shopName}\n\nItems:\n${itemsList}\n\nTotal: ₹${args.totalAmount}`;
+      let notificationTitle = '';
+      let notificationMessage: string = '';
+      console.log('the status of order which is placed right now is', args.status);
+      
+      switch(args.status) {
+          case 'pending':
+            notificationTitle = `🛒 New Order Received!`;
+            notificationMessage = `${customerName} placed a ${orderTypeText.toLowerCase()} order at ${shopName}\n\nItems:\n${itemsList}\n\nTotal: ₹${args.totalAmount}`;
+            break;
+          
+          case 'completed':
+            notificationTitle = `✅ Order Received by ${customerName}`;
+            notificationMessage = `${customerName} received the order\n\nItems:\n${itemsList}\n\nfrom ${shopName}`;
+            break;
+          
+          case 'cancelled':
+            notificationTitle = `❌ Order Cancelled by ${customerName}`;
+            notificationMessage = `${customerName} cancelled the order\n\nItems:\n${itemsList}\n\nfrom ${shopName}`;
+            break;
+            
+          default:
+            notificationTitle = `📦 Order Update`;
+            notificationMessage = `${customerName} updated their order at ${shopName}\n\nItems:\n${itemsList}\n\nTotal: ₹${args.totalAmount}`;
+            break;
+      }
 
       // Get OneSignal configuration from environment
       const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
@@ -320,20 +384,21 @@ export const sendOrderNotificationToShopkeeper = action({
         // Android specific
         android_group: "order_notifications",
         android_group_message: {
-          en: "$[notif_count] new orders"
+          en: "$[notif_count] order updates"
         },
-        android_led_color: "FF00FF00", // Green LED for new orders
+        android_led_color: args.status === "cancelled" ? "FFFF0000" : args.status === "completed" ? "FF00FF00" : "FF00FF00", // Red for cancelled, green for others
         android_sound: "notification_sound",
         android_visibility: 1, // Public visibility
         
         // Custom data for app handling
         data: {
-          type: "new_order",
+          type: args.status === "pending" ? "new_order" : "order_update",
           orderId: args.orderId,
           shopId: args.shopId,
           customerId: args.customerId,
           totalAmount: args.totalAmount.toString(),
           orderType: args.orderType,
+          orderStatus: args.status,
           deepLink: `goshop://order/${args.orderId}`
         },
       };

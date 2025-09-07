@@ -393,21 +393,11 @@ function timeStringToMinutes(timeString: string): number {
 
                   <View style={styles.shopActions}>
                     <TouchableOpacity
-                      style={styles.ordersButton}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        setSelectedShopForOrders(shop);
-                      }}
-                    >
-                      <View style={styles.ordersButtonContent}>
-                        <Ionicons name="receipt-outline" size={16} color="#2563EB" />
-                        <Text style={styles.ordersButtonText}>Orders</Text>
-                        <PendingOrdersBadge shopId={shop._id} />
-                      </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.manageItemsButton}
+                      style={[
+                        styles.manageItemsButton,
+                        // Expand when orders button is not shown
+                        !shop.hasDelivery && styles.manageItemsButtonExpanded
+                      ]}
                       onPress={(e) => {
                         e.stopPropagation();
                         setSelectedShopForItems(shop);
@@ -421,6 +411,8 @@ function timeStringToMinutes(timeString: string): number {
                       style={[
                         styles.toggleButton,
                         shop.isOpen ? styles.toggleButtonClose : styles.toggleButtonOpen,
+                        // Expand when orders button is not shown
+                        !shop.hasDelivery && styles.toggleButtonExpanded
                       ]}
                       onPress={(e) => {
                         e.stopPropagation();
@@ -437,6 +429,23 @@ function timeStringToMinutes(timeString: string): number {
                       </Text>
                     </TouchableOpacity>
                   </View>
+
+                  {/* Full-width Orders button at bottom - only for delivery-enabled shops */}
+                  {shop.hasDelivery && (
+                    <TouchableOpacity
+                      style={styles.fullWidthOrdersButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setSelectedShopForOrders(shop);
+                      }}
+                    >
+                      <View style={styles.fullWidthOrdersButtonContent}>
+                        <Ionicons name="receipt-outline" size={18} color="#FFFFFF" />
+                        <Text style={styles.fullWidthOrdersButtonText}>View Orders</Text>
+                        <PendingOrdersBadge shopId={shop._id} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -799,6 +808,7 @@ const styles = StyleSheet.create({
   shopActions: {
     flexDirection: "row",
     gap: 6,
+    marginBottom: 12, // Add margin bottom to separate from full-width button
   },
   ordersButton: {
     flex: 1,
@@ -820,6 +830,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+  fullWidthOrdersButton: {
+    width: "100%",
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#2563EB",
+    marginTop: 8,
+    position: "relative",
+  },
+  fullWidthOrdersButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  fullWidthOrdersButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   notificationBadge: {
     position: "absolute",
     top: -6,
@@ -832,6 +861,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "#FFFFFF",
+    zIndex: 10,
   },
   notificationText: {
     color: "#FFFFFF",
@@ -851,6 +881,9 @@ const styles = StyleSheet.create({
     borderColor: "#DBEAFE",
     gap: 4,
   },
+  manageItemsButtonExpanded: {
+    flex: 1.5, // Take more space when orders button is hidden
+  },
   manageItemsButtonText: {
     color: "#2563EB",
     fontSize: 12,
@@ -864,6 +897,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     gap: 4,
+  },
+  toggleButtonExpanded: {
+    flex: 1.5, // Take more space when orders button is hidden
   },
   toggleButtonOpen: {
     backgroundColor: "#16A34A",

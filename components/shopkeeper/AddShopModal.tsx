@@ -311,7 +311,11 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
       const businessHours = openingHours && closingHours ? {
         openTime: formatTimeFor24Hour(openingHours, openingMinutes, openingPeriod),
         closeTime: formatTimeFor24Hour(closingHours, closingMinutes, closingPeriod),
-      } : undefined;
+      }:undefined;
+      if(businessHours===undefined){
+      Alert.alert("Error", "Please fill the business hours in which you operate");
+      return;
+      }
 
       // Validate delivery range if delivery is enabled
       if (hasDelivery && (!deliveryRange || isNaN(parseFloat(deliveryRange)) || parseFloat(deliveryRange) <= 0)) {
