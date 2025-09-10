@@ -13,6 +13,7 @@ import {
   Animated,
   Alert,
   AppState,
+  Modal,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,6 +29,7 @@ import ShopInventoryModal from "./ShopInventoryModal";
 import CustomerSidebar from "./CustomerSidebar";
 import NotificationsModal from "./NotificationsModal";
 import CustomerOrdersModal from "./CustomerOrdersModal";
+import SimpleAdminPanel from "./SimpleAdminPanel";
 import { User, CartItem } from "../../types/interfaces";
 import { useNotificationNavigation } from "../../hooks/useNotificationNavigation";
 import { OneSignalService } from "../../services/oneSignalService";
@@ -78,6 +80,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   const [wishlistItems, setWishlistItems] = useState<any[]>([]);
   const [favouriteShops, setFavouriteShops] = useState<any[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [adminPanelVisible, setAdminPanelVisible] = useState(false);
   
   // Animation for popup
   const popupAnim = useRef(new Animated.Value(0)).current;
@@ -990,6 +993,19 @@ useEffect(() => {
             >
               <Ionicons name="notifications-outline" size={20} color="#3B82F6" />
             </TouchableOpacity>
+            
+            {/* Admin Access Button - Only visible for admin email */}
+            {user.email === 'piyushraj7308305@gmail.com' && (
+              <TouchableOpacity 
+                onPress={() => setAdminPanelVisible(true)} 
+                style={styles.compactAdminButton}
+                activeOpacity={0.7}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+              >
+                <Ionicons name="settings-outline" size={20} color="#DC2626" />
+              </TouchableOpacity>
+            )}
+            
             {/* Debug Test Button - Remove after testing */}
             <TouchableOpacity 
               onPress={() => setSidebarVisible(true)} 
@@ -1420,6 +1436,11 @@ useEffect(() => {
         onRemoveFromFavourites={handleRemoveFromFavourites}
         onViewShop={handleViewFavouriteShop}
       />
+
+      <SimpleAdminPanel
+        visible={adminPanelVisible}
+        onClose={() => setAdminPanelVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -1516,6 +1537,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
+  },
+  compactAdminButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FEF2F2",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    shadowColor: "#DC2626",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   locationBar: {
     paddingHorizontal: 24,

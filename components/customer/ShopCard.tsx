@@ -30,6 +30,9 @@ interface Shop {
   hasDelivery?: boolean;
   deliveryRange?: number;
   distance?: number | null; // Distance in kilometers
+  // Verification fields
+  isVerified?: boolean;
+  verifiedAt?: number;
 }
 
 interface ShopCardProps {
@@ -157,7 +160,14 @@ export default function ShopCard({ shop, onViewInventory, showInventoryButton = 
           />
         </View>
         <View style={styles.shopInfo}>
-          <Text style={styles.shopName}>{shop.name}</Text>
+          <View style={styles.shopNameRow}>
+            <Text style={styles.shopName}>{shop.name}</Text>
+            {shop.isVerified && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+              </View>
+            )}
+          </View>
           <Text style={styles.category}>{shop.category.charAt(0).toUpperCase() + shop.category.slice(1)}</Text>
           {shop.location.address && (
             <Text style={styles.address} numberOfLines={1}>
@@ -666,6 +676,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
+  directionSection: {
+    alignItems: "flex-end",
+    gap: 4,
+  },
   inventoryButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -705,5 +719,47 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#2563EB",
     fontWeight: "500",
+  },
+  // Verification badge styles
+  shopNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  verifiedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 3,
+    marginLeft: 4,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  verifiedText: {
+    fontSize: 11,
+    color: "#10B981",
+    fontWeight: "600",
+  },
+  verifiedIconContainer: {
+    marginLeft: 6,
+    backgroundColor: "#F0FDF4",
+    borderRadius: 12,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: "#10B981",
+    shadowColor: "#10B981",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
   },
 });

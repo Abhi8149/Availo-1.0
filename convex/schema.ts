@@ -52,6 +52,9 @@ export default defineSchema({
     })),
     hasDelivery: v.optional(v.boolean()),
     deliveryRange: v.optional(v.number()), // in kilometers
+    // Verification fields
+    isVerified: v.optional(v.boolean()), // Verification status - can be toggled from database
+    verifiedAt: v.optional(v.number()), // Timestamp when verified
   })
     .index("by_owner", ["ownerUid"])
     .index("by_category", ["category"])

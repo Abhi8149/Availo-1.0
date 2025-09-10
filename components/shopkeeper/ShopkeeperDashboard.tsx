@@ -272,6 +272,11 @@ function timeStringToMinutes(timeString: string): number {
                     <View style={styles.shopInfo}>
                       <View style={styles.nameWithEdit}>
                         <Text style={styles.shopName}>{shop.name}</Text>
+                        {shop.isVerified && (
+                          <View style={styles.verifiedBadge}>
+                            <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+                          </View>
+                        )}
                         <Ionicons name="create-outline" size={16} color="#9CA3AF" />
                       </View>
                       <Text style={styles.shopCategory}>{shop.category}</Text>
@@ -598,6 +603,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  verifiedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginRight: 4,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   shopCategory: {
     fontSize: 14,

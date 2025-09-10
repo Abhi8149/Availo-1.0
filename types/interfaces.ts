@@ -39,6 +39,9 @@ export interface Shop {
   distance?: number | null;
   hasDelivery?: boolean;
   deliveryRange?: number;
+  // Verification fields
+  isVerified?: boolean;
+  verifiedAt?: number;
 }
 
 export interface User {

@@ -486,7 +486,15 @@ export default function ShopInventoryModal({
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
             <View style={styles.headerInfo}>
-              <Text style={styles.title}>{shop.name}</Text>
+              <View style={styles.titleRow}>
+                <Text style={styles.title}>{shop.name}</Text>
+                {shop.isVerified && (
+                  <View style={styles.verifiedBadgeModal}>
+                    <Ionicons name="shield-checkmark" size={18} color="#10B981" />
+                    <Text style={styles.verifiedTextModal}>Verified</Text>
+                  </View>
+                )}
+              </View>
               <Text style={styles.subtitle}>Shop Details & Items</Text>
             </View>
             {/* Cart Button */}
@@ -1578,5 +1586,32 @@ const styles = StyleSheet.create({
   deliveryStatus: {
     fontSize: 14,
     color: "#6B7280",
+  },
+  // Verification badge styles for modal
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  verifiedBadgeModal: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 4,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  verifiedTextModal: {
+    fontSize: 13,
+    color: "#10B981",
+    fontWeight: "600",
   },
 });
