@@ -10,17 +10,16 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ActionSheetIOS,
   ToastAndroid,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { useMutation, useQuery, useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import BarcodeScanner from "../common/BarcodeScanner";
 import { ProductApiService, ProductData } from "../../services/productApiService";
+import { FlexibleImagePicker } from "../common/FlexibleImagePicker";
 
 interface AddItemModalProps {
   visible: boolean;
@@ -190,85 +189,18 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
     setShowBarcodeScanner(true);
   };
 
-  const requestPermissions = async () => {
-    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-    const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (cameraStatus !== "granted" || mediaStatus !== "granted") {
-      Alert.alert(
-        "Permissions Required",
-        "Please grant camera and photo library permissions to add images."
-      );
-      return false;
-    }
-    return true;
-  };
-
   const showImagePicker = async () => {
-    const hasPermissions = await requestPermissions();
-    if (!hasPermissions) return;
-
-    const options = ["Take Photo", "Choose from Gallery", "Cancel"];
-    
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options,
-          cancelButtonIndex: 2,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 0) {
-            openCamera();
-          } else if (buttonIndex === 1) {
-            openGallery();
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        "Select Image",
-        "Choose an option",
-        [
-          { text: "Take Photo", onPress: openCamera },
-          { text: "Choose from Gallery", onPress: openGallery },
-          { text: "Cancel", style: "cancel" },
-        ]
-      );
-    }
-  };
-
-  const openCamera = async () => {
     try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
+      const image = await FlexibleImagePicker.pickItemPhoto({
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
+      if (image) {
+        setImageUri(image.uri);
         setImageId(null);
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to take photo");
-    }
-  };
-
-  const openGallery = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
-        setImageId(null);
-      }
-    } catch (error) {
+      console.error('Error picking image:', error);
       Alert.alert("Error", "Failed to select image");
     }
   };

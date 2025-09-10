@@ -10,15 +10,14 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ActionSheetIOS,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import AddressInput from "../common/AddressInput";
+import { FlexibleImagePicker } from "../common/FlexibleImagePicker";
 
 interface AddShopModalProps {
   visible: boolean;
@@ -76,126 +75,46 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
     return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
   };
 
-  const requestPermissions = async () => {
-    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-    const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (cameraStatus !== "granted" || mediaStatus !== "granted") {
-      Alert.alert(
-        "Permissions Required",
-        "Please grant camera and photo library permissions to add shop images."
-      );
-      return false;
-    }
-    return true;
-  };
-
   const showImagePicker = async () => {
-    const hasPermissions = await requestPermissions();
-    if (!hasPermissions) return;
-
-  const options = ["Take Photo", "Choose from Gallery", "Cancel"];
-    
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options,
-          cancelButtonIndex: 2,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 0) {
-            openCamera();
-          } else if (buttonIndex === 1) {
-            openGallery();
-          } // buttonIndex === 2 is Cancel
-        }
-      );
-    } else {
-      Alert.alert(
-        "Add Photos",
-        "Choose an option to add shop photos",
-        [
-          { text: "Take Photo", onPress: openCamera },
-          { text: "Choose from Gallery", onPress: openGallery },
-          { text: "Cancel", style: "cancel" },
-        ]
-      );
-    }
-  };
-
-  const openCamera = async () => {
     if (imageUris.length >= 10) {
-      Alert.alert("Limit Exceeded", "You can add maximum 10 images per shop");
+      Alert.alert("Limit Reached", "You can add maximum 10 photos per shop");
       return;
     }
 
     try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3], // Better aspect ratio for shop photos
+      const images = await FlexibleImagePicker.pickShopPhoto({
         quality: 0.8,
+        selectionLimit: 10 - imageUris.length,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        setImageUris(prev => [...prev, result.assets[0].uri]);
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to take photo");
-    }
-  };
-
-  const openGallery = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true, // Enable editing for better cropping control
-        aspect: [4, 3], // Better aspect ratio for shop photos
-        quality: 0.8,
-        allowsMultipleSelection: false, // Single selection with editing for better control
-      });
-
-      if (!result.canceled && result.assets.length > 0) {
-        const newUris = result.assets.map(asset => asset.uri);
-        const totalImages = imageUris.length + newUris.length;
-        
-        if (totalImages > 10) {
-          Alert.alert("Limit Exceeded", "You can add maximum 10 images per shop");
-          return;
-        }
-        
+      if (images.length > 0) {
+        const newUris = images.map(img => img.uri);
         setImageUris(prev => [...prev, ...newUris]);
       }
     } catch (error) {
+      console.error('Error picking images:', error);
       Alert.alert("Error", "Failed to select images");
     }
   };
 
-  const openGalleryMultiple = async () => {
+  const addMorePhotos = async () => {
+    if (imageUris.length >= 10) {
+      Alert.alert("Limit Reached", "You can add maximum 10 photos per shop");
+      return;
+    }
+
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false, // Disable editing for multiple selection
+      const images = await FlexibleImagePicker.pickShopPhoto({
         quality: 0.8,
-        allowsMultipleSelection: true,
-        selectionLimit: Math.min(10 - imageUris.length, 10), // Remaining slots
+        selectionLimit: 10 - imageUris.length,
       });
 
-      if (!result.canceled && result.assets.length > 0) {
-        const newUris = result.assets.map(asset => asset.uri);
-        const totalImages = imageUris.length + newUris.length;
-        
-        if (totalImages > 10) {
-          const allowedCount = 10 - imageUris.length;
-          const limitedUris = newUris.slice(0, allowedCount);
-          setImageUris(prev => [...prev, ...limitedUris]);
-          Alert.alert("Limit Reached", `Added ${allowedCount} photos. Maximum 10 photos allowed per shop.`);
-          return;
-        }
-        
+      if (images.length > 0) {
+        const newUris = images.map(img => img.uri);
         setImageUris(prev => [...prev, ...newUris]);
       }
     } catch (error) {
+      console.error('Error picking images:', error);
       Alert.alert("Error", "Failed to select images");
     }
   };
@@ -206,20 +125,18 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
 
   const editImage = async (indexToEdit: number) => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+      const image = await FlexibleImagePicker.pickImage({
         quality: 0.8,
-        allowsMultipleSelection: false,
+        cropEnabled: true,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (image) {
         setImageUris(prev => prev.map((uri, index) => 
-          index === indexToEdit ? result.assets[0].uri : uri
+          index === indexToEdit ? image.uri : uri
         ));
       }
     } catch (error) {
+      console.error('Error editing image:', error);
       Alert.alert("Error", "Failed to edit image");
     }
   };
@@ -451,7 +368,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
                   imageUris.length >= 10 && styles.addImageButtonDisabled,
                   imageUris.length === 0 && styles.addImageButtonPrimary
                 ]} 
-                onPress={showImagePicker}
+                onPress={imageUris.length === 0 ? showImagePicker : addMorePhotos}
                 disabled={imageUris.length >= 10}
               >
                 <View style={styles.addImageIconContainer}>

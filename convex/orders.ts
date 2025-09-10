@@ -110,13 +110,20 @@ export const getUserOrderHistory = query({
         ))
         .collect();
       
-      // Add shop name to each order for reference
-      const ordersWithShopName = orders.map(order => ({
-        ...order,
-        shopName: shop.name
-      }));
+      // Enhance orders with customer information and shop name
+      const enhancedOrders = await Promise.all(
+        orders.map(async (order) => {
+          const customer = await ctx.db.get(order.customerId);
+          return {
+            ...order,
+            shopName: shop.name,
+            customerName: customer?.name || "Unknown Customer",
+            customerMobile: customer?.phone || null,
+          };
+        })
+      );
       
-      allOrders.push(...ordersWithShopName);
+      allOrders.push(...enhancedOrders);
     }
     
     // Sort all orders by creation date (newest first)
@@ -175,7 +182,7 @@ export const updateOrderStatus = mutation({
     await ctx.db.patch(args.orderId, updateData);
 
     // Schedule customer notification for status changes that customers should know about
-    const notifiableStatuses = ["confirmed","rejected"];
+    const notifiableStatuses = ["confirmed", "rejected", "completed"];
     if (notifiableStatuses.includes(args.status)) {
       // Schedule the notification action to run after this mutation completes
       await ctx.scheduler.runAfter(0, api.orders.sendOrderStatusNotificationToCustomer, {
@@ -460,7 +467,8 @@ export const sendOrderStatusNotificationToCustomer = action({
     shopId: v.id("shops"),
     status: v.union(
       v.literal("confirmed"), 
-      v.literal("rejected")
+      v.literal("rejected"),
+      v.literal("completed")
     ),
     deliveryTime: v.optional(v.number()),
     rejectionReason: v.optional(v.string()),
@@ -510,6 +518,14 @@ export const sendOrderStatusNotificationToCustomer = action({
         case "confirmed":
           notificationTitle = "📦 Order Confirmation";
           notificationMessage = `Your order from ${shop.name} will be delivered in ${args.deliveryTime} minutes.`;
+          notificationIcon = "ic_notification";
+          break;
+        
+        case "completed":
+          notificationTitle = "✅ Order Completed";
+          notificationMessage = `Your order from ${shop.name} has been completed and delivered!`;
+          notificationIcon = "ic_check";
+          break;
       }
 
       // Get OneSignal configuration from environment

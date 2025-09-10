@@ -10,18 +10,17 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ActionSheetIOS,
   FlatList,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import AddressInput from "../common/AddressInput";
 import AdvertisementModal from "./AdvertisementModal";
 import AdvertisementHistoryModal from "./AdvertisementHistoryModal";
+import { FlexibleImagePicker } from "../common/FlexibleImagePicker";
 
 // Component to display individual images with proper URL fetching
 const ImageDisplay = ({ 
@@ -229,24 +228,7 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
     }
   }, [shop]);
 
-  const requestPermissions = async () => {
-    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-    const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (cameraStatus !== "granted" || mediaStatus !== "granted") {
-      Alert.alert(
-        "Permissions Required",
-        "Please grant camera and photo library permissions to manage shop images."
-      );
-      return false;
-    }
-    return true;
-  };
-
   const showImagePickerOptions = async () => {
-    const hasPermissions = await requestPermissions();
-    if (!hasPermissions) return;
-
     const totalImages = existingImages.filter(id => !imagesToDelete.includes(id)).length + newImages.length;
     const maxImages = 5;
     
@@ -255,75 +237,14 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
       return;
     }
 
-    const options = ["Choose Multiple Photos", "Take Photo", "Cancel"];
-    
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options,
-          cancelButtonIndex: 2,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 0) {
-            openGallery(true); // Choose Multiple Photos
-          } else if (buttonIndex === 1) {
-            openCamera(); // Take Photo
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        "Add Images",
-        "Choose an option",
-        [
-          { text: "Choose Multiple Photos", onPress: () => openGallery(true) },
-          { text: "Take Photo", onPress: openCamera },
-          { text: "Cancel", style: "cancel" },
-        ]
-      );
-    }
-  };
-
-  const openCamera = async () => {
     try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [16, 9],
+      const images = await FlexibleImagePicker.pickShopPhoto({
         quality: 0.8,
+        selectionLimit: maxImages - totalImages,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        const newImageUri = result.assets[0].uri;
-        setNewImages(prev => [...prev, newImageUri]);
-        
-        // If this is the first image, make it main
-        const totalExisting = existingImages.filter(id => !imagesToDelete.includes(id)).length;
-        if (totalExisting === 0 && newImages.length === 0) {
-          setMainImageIndex(0);
-        }
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to take photo");
-    }
-  };
-
-  const openGallery = async (allowsMultiple: boolean = false) => {
-    try {
-      const totalImages = existingImages.filter(id => !imagesToDelete.includes(id)).length + newImages.length;
-      const remainingSlots = 5 - totalImages;
-      
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: !allowsMultiple,
-        allowsMultipleSelection: allowsMultiple,
-        selectionLimit: allowsMultiple ? Math.min(remainingSlots, 5) : 1,
-        aspect: allowsMultiple ? undefined : [16, 9],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets.length > 0) {
-        const newImageUris = result.assets.map(asset => asset.uri);
+      if (images.length > 0) {
+        const newImageUris = images.map(img => img.uri);
         setNewImages(prev => [...prev, ...newImageUris]);
         
         // If these are the first images, make the first one main
@@ -337,6 +258,7 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
         }
       }
     } catch (error) {
+      console.error('Error picking images:', error);
       Alert.alert("Error", "Failed to select images");
     }
   };
@@ -406,67 +328,32 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
 
   // Replace image functions
   const showReplaceImageOptions = (type: 'existing' | 'new', index: number) => {
-    const options = ["Choose Multiple Photos", "Take Photo", "Cancel"];
-    
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options,
-          cancelButtonIndex: 2,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 0) {
-            replaceImage(type, index, 'gallery');
-          } else if (buttonIndex === 1) {
-            replaceImage(type, index, 'camera');
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        "Replace Image",
-        "Choose how to replace this image",
-        [
-          { text: "Choose Multiple Photos", onPress: () => replaceImage(type, index, 'gallery') },
-          { text: "Take Photo", onPress: () => replaceImage(type, index, 'camera') },
-          { text: "Cancel", style: "cancel" },
-        ]
-      );
-    }
+    Alert.alert(
+      "Replace Image",
+      "Choose how to replace this image",
+      [
+        { text: "Choose & Crop", onPress: () => replaceImage(type, index, true) },
+        { text: "Choose Full Image", onPress: () => replaceImage(type, index, false) },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
   };
 
-  const replaceImage = async (type: 'existing' | 'new', index: number, source: 'camera' | 'gallery') => {
+  const replaceImage = async (type: 'existing' | 'new', index: number, allowCrop: boolean = true) => {
     try {
-      const hasPermissions = await requestPermissions();
-      if (!hasPermissions) return;
+      const image = await FlexibleImagePicker.pickImage({
+        quality: 0.8,
+        cropEnabled: allowCrop,
+      });
 
-      let result;
-      if (source === 'camera') {
-        result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [16, 9],
-          quality: 0.8,
-        });
-      } else {
-        result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [16, 9],
-          quality: 0.8,
-        });
-      }
-
-      if (!result.canceled && result.assets[0]) {
-        const newImageUri = result.assets[0].uri;
-        
+      if (image) {
         if (type === 'existing') {
           // For existing images, mark old for deletion and add new
           const oldImageId = existingImages[index];
           if (oldImageId && !imagesToDelete.includes(oldImageId)) {
             setImagesToDelete(prev => [...prev, oldImageId]);
           }
-          setNewImages(prev => [...prev, newImageUri]);
+          setNewImages(prev => [...prev, image.uri]);
           
           // Update main image index if this was the main image
           if (index === mainImageIndex) {
@@ -477,7 +364,7 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
           // For new images, just replace in the array
           setNewImages(prev => {
             const updated = [...prev];
-            updated[index] = newImageUri;
+            updated[index] = image.uri;
             return updated;
           });
         }
@@ -705,18 +592,10 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
                         <View style={styles.initialImageOptions}>
                           <TouchableOpacity
                             style={[styles.imageOptionButton, styles.multipleButton]}
-                            onPress={() => openGallery(true)}
+                            onPress={showImagePickerOptions}
                           >
                             <Ionicons name="images" size={24} color="#FFFFFF" />
-                            <Text style={styles.imageOptionButtonText}>Choose Multiple Photos</Text>
-                          </TouchableOpacity>
-                          
-                          <TouchableOpacity
-                            style={[styles.imageOptionButton, styles.cameraButton]}
-                            onPress={openCamera}
-                          >
-                            <Ionicons name="camera" size={24} color="#FFFFFF" />
-                            <Text style={styles.imageOptionButtonText}>Take Photo</Text>
+                            <Text style={styles.imageOptionButtonText}>Add Shop Photos</Text>
                           </TouchableOpacity>
                         </View>
                       </View>

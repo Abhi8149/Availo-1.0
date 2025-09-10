@@ -49,7 +49,8 @@ export default function OrderHistoryModal({
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | undefined) => {
+    if (!status) return "#9CA3AF";
     switch (status) {
       case "completed":
         return "#16A34A";
@@ -60,7 +61,8 @@ export default function OrderHistoryModal({
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string | undefined) => {
+    if (!status) return "help-circle";
     switch (status) {
       case "completed":
         return "checkmark-circle";
@@ -85,21 +87,24 @@ export default function OrderHistoryModal({
     }
   };
 
-  const renderOrderCard = (order: any) => (
-    <TouchableOpacity
-      key={order._id}
-      style={styles.orderCard}
-      activeOpacity={0.7}
-    >
+  const renderOrderCard = (order: any) => {
+    if (!order) return null;
+    
+    return (
+      <TouchableOpacity
+        key={order._id}
+        style={styles.orderCard}
+        activeOpacity={0.7}
+      >
       <View style={styles.orderCardHeader}>
         <View style={styles.customerInfo}>
           <View style={styles.customerAvatar}>
             <Text style={styles.customerAvatarText}>
-              {order.customerName.charAt(0).toUpperCase()}
+              {order.customerName ? order.customerName.charAt(0).toUpperCase() : '?'}
             </Text>
           </View>
           <View style={styles.customerDetails}>
-            <Text style={styles.customerName}>{order.customerName}</Text>
+            <Text style={styles.customerName}>{order.customerName || 'Unknown Customer'}</Text>
             {order.customerMobile && (
               <TouchableOpacity 
                 onPress={() => handleContactCustomer(order.customerMobile)}
@@ -124,22 +129,28 @@ export default function OrderHistoryModal({
             style={styles.statusIcon}
           />
           <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
-            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+            {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}
           </Text>
         </View>
       </View>
 
       <View style={styles.orderItems}>
         <Text style={styles.itemsLabel}>Items:</Text>
-        {order.items.slice(0, 2).map((item: any, index: number) => (
-          <Text key={index} style={styles.itemText}>
-            • {item.itemName} x{item.quantity}
-          </Text>
-        ))}
-        {order.items.length > 2 && (
-          <Text style={styles.moreItemsText}>
-            +{order.items.length - 2} more items
-          </Text>
+        {order.items && order.items.length > 0 ? (
+          <>
+            {order.items.map((item: any, index: number) => (
+              <View key={index} style={styles.itemRow}>
+                <Text style={styles.itemText}>
+                  • {item?.name || 'Unknown Item'} x{item?.quantity || 0}
+                </Text>
+                {item?.price && (
+                  <Text style={styles.itemPrice}>₹{item.price}</Text>
+                )}
+              </View>
+            ))}
+          </>
+        ) : (
+          <Text style={styles.itemText}>No items found</Text>
         )}
       </View>
 
@@ -167,6 +178,7 @@ export default function OrderHistoryModal({
       )}
     </TouchableOpacity>
   );
+  };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -181,6 +193,14 @@ export default function OrderHistoryModal({
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {orderHistory && orderHistory.length > 0 ? (
             orderHistory.map(renderOrderCard)
+          ) : orderHistory === undefined ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="receipt-outline" size={64} color="#9CA3AF" />
+              <Text style={styles.emptyStateTitle}>Loading...</Text>
+              <Text style={styles.emptyStateSubtitle}>
+                Fetching your order history
+              </Text>
+            </View>
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="receipt-outline" size={64} color="#9CA3AF" />
@@ -315,6 +335,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
     marginBottom: 2,
+    flex: 1,
+  },
+  itemRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  itemPrice: {
+    fontSize: 14,
+    color: "#059669",
+    fontWeight: "600",
+    marginLeft: 8,
   },
   moreItemsText: {
     fontSize: 14,

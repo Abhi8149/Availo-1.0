@@ -56,24 +56,17 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
   shopId,
 }) => {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"active" | "history">("active");
   
   const allOrders = useQuery(
     api.orders.getShopOrders, 
     visible && shopId ? { shopId } : "skip"
   );
   
-  // Filter orders based on active tab
+  // Show only active orders (not completed, rejected, or cancelled)
   const orders = allOrders?.filter((order: any) => {
-    if (activeTab === "active") {
-      return order.status !== "completed" && 
-             order.status !== "rejected" && 
-             order.status !== "cancelled";
-    } else {
-      return order.status === "completed" || 
-             order.status === "rejected" || 
-             order.status === "cancelled";
-    }
+    return order.status !== "completed" && 
+           order.status !== "rejected" && 
+           order.status !== "cancelled";
   });
   
   const updateOrderStatus = useMutation(api.orders.updateOrderStatus);
@@ -155,29 +148,9 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Shop Orders</Text>
+          <Text style={styles.title}>Active Orders</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tab Navigation */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "active" && styles.activeTab]}
-            onPress={() => setActiveTab("active")}
-          >
-            <Text style={[styles.tabText, activeTab === "active" && styles.activeTabText]}>
-              Active Orders
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "history" && styles.activeTab]}
-            onPress={() => setActiveTab("history")}
-          >
-            <Text style={[styles.tabText, activeTab === "history" && styles.activeTabText]}>
-              Order History
-            </Text>
           </TouchableOpacity>
         </View>
 
@@ -186,14 +159,9 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
             <Text style={styles.loading}>Loading orders...</Text>
           ) : orders.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>
-                {activeTab === "active" ? "No active orders" : "No order history"}
-              </Text>
+              <Text style={styles.emptyStateText}>No active orders</Text>
               <Text style={styles.emptyStateSubtext}>
-                {activeTab === "active" 
-                  ? "New orders will appear here" 
-                  : "Completed, rejected, and cancelled orders will appear here"
-                }
+                New orders will appear here
               </Text>
             </View>
           ) : (
@@ -264,7 +232,7 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
           order={selectedOrder ? allOrders?.find(o => o._id === selectedOrder._id) || selectedOrder : null}
           onUpdateStatus={handleStatusUpdate}
           openDirections={openDirections}
-          isHistoryMode={activeTab === "history"}
+          isHistoryMode={false}
         />
       </View>
     </Modal>
@@ -324,6 +292,24 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             await onUpdateStatus(order._id, "rejected", undefined, rejectReason || undefined);
             setShowRejectModal(false);
             setRejectReason("");
+            // Modal will be closed by handleStatusUpdate
+          }
+        }
+      ]
+    );
+  };
+
+  const handleMarkAsCompleted = (orderId: Id<"orders">) => {
+    Alert.alert(
+      "Mark as Completed",
+      "Are you sure you want to mark this order as completed?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Complete",
+          onPress: async () => {
+            await onUpdateStatus(orderId, "completed");
+            Alert.alert("Success", "Order marked as completed successfully!");
             // Modal will be closed by handleStatusUpdate
           }
         }
@@ -419,6 +405,16 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                     <Text style={styles.rejectButtonText}>Cancel Order</Text>
                   </TouchableOpacity>
                 </View>
+              )}
+
+              {/* Full-width Mark as Completed button */}
+              {order.status === "confirmed" && (
+                <TouchableOpacity
+                  style={styles.fullWidthCompleteButton}
+                  onPress={() => handleMarkAsCompleted(order._id)}
+                >
+                  <Text style={styles.fullWidthCompleteButtonText}>Mark as Completed</Text>
+                </TouchableOpacity>
               )}
             </>
           )}
@@ -741,14 +737,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  completeButton: {
+  fullWidthCompleteButton: {
+    width: "100%",
+    paddingVertical: 16,
+    borderRadius: 0,
     backgroundColor: "#059669",
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: "center",
     marginTop: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
   },
-  completeButtonText: {
+  fullWidthCompleteButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
@@ -872,30 +872,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
-  },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#F3F4F6",
-    margin: 16,
-    borderRadius: 8,
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    borderRadius: 6,
-  },
-  activeTab: {
-    backgroundColor: "#3B82F6",
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  activeTabText: {
-    color: "#FFFFFF",
   },
 });

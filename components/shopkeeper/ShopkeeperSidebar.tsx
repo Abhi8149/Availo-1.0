@@ -294,6 +294,25 @@ export default function ShopkeeperSidebar({
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
               </TouchableOpacity>
 
+              {/* Order History */}
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => setOrderHistoryVisible(true)}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.menuIcon, { backgroundColor: "#F3E8FF" }]}>
+                    <Ionicons name="receipt-outline" size={20} color="#7C3AED" />
+                  </View>
+                  <View style={styles.menuItemText}>
+                    <Text style={styles.menuItemTitle}>Order History</Text>
+                    <Text style={styles.menuItemSubtitle}>
+                      View completed and rejected orders
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+
               {/* Help & Support */}
               <TouchableOpacity
                 style={styles.menuItem}
@@ -505,7 +524,7 @@ export default function ShopkeeperSidebar({
                   <View style={styles.contactOptionText}>
                     <Text style={styles.contactOptionTitle}>Email Support</Text>
                     <Text style={styles.contactOptionSubtitle}>
-                      support@oldshopstatus.com
+                      piyushraj7308305@gmail.com
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -518,7 +537,7 @@ export default function ShopkeeperSidebar({
                   <View style={styles.contactOptionText}>
                     <Text style={styles.contactOptionTitle}>Phone Support</Text>
                     <Text style={styles.contactOptionSubtitle}>
-                      +1 (234) 567-8900
+                      6204183318
                     </Text>
                   </View>
                 </TouchableOpacity>

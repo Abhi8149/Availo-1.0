@@ -30,7 +30,7 @@ export default function AddressInput({
   const [isLoading, setIsLoading] = useState(false);
   const [showPredictions, setShowPredictions] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const searchTimeoutRef = useRef<number | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setQuery(value);

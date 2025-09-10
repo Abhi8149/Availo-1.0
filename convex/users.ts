@@ -282,7 +282,6 @@ export const getNearbyUsers = query({
         q.and(
           q.neq(q.field("location"), undefined),
           q.neq(q.field("oneSignalPlayerId"), undefined),
-          q.eq(q.field("role"), "customer"), // Only customers
           q.eq(q.field("pushNotificationsEnabled"), true)
         )
       )

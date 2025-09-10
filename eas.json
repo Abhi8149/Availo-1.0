@@ -21,12 +21,17 @@
         "EXPO_PUBLIC_LOCATIONIQ_API_KEY":"pk.2e5d70a914f544ff9b993af9ac29d478"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "aab"
       },
       "channel": "production"
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./path/to/api-key.json",
+        "track": "internal"
+      }
+    }
   }
 }
