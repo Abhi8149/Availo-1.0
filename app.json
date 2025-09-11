@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Shop Status",
+    "name": "Availo",
     "slug": "shop-status",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-icon.png",
     "scheme": "goshop",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -23,9 +23,9 @@
     },
     "android": {
       "package": "com.shopstatus.app",
-      "versionCode": 1,
+      "versionCode": 3,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/app-adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "intentFilters": [
