@@ -493,11 +493,7 @@ export default function AdvertisementModal({
           if (pushResult.success) {
             Alert.alert(
               "Success!", 
-              `Advertisement created and push notifications sent to ${pushResult.sentCount} nearby users!${
-                (pushResult.nearbyUsersCount && pushResult.enabledUsersCount && pushResult.nearbyUsersCount > pushResult.enabledUsersCount)
-                  ? ` (${pushResult.nearbyUsersCount - pushResult.enabledUsersCount} users don't have notifications enabled)` 
-                  : ''
-              }`
+              "Advertisement send to users within 5km"
             );
           } else {
             Alert.alert(

@@ -24,7 +24,6 @@ import { Id } from "../../convex/_generated/dataModel";
 import ShopCard from "./ShopCard";
 import ItemDetailsModal from "./ItemDetailsModal";
 import ItemImage from "../common/ItemImage";
-import ShopMapModal from "./ShopMapModal";
 import ShopInventoryModal from "./ShopInventoryModal";
 import CustomerSidebar from "./CustomerSidebar";
 import NotificationsModal from "./NotificationsModal";
@@ -988,16 +987,6 @@ useEffect(() => {
           
           <View style={styles.compactActions}>
             <TouchableOpacity 
-              onPress={() => setShowMap(true)} 
-              style={styles.compactButton}
-              activeOpacity={0.7}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-              delayPressIn={0}
-              delayPressOut={0}
-            >
-              <Ionicons name="map-outline" size={20} color="#3B82F6" />
-            </TouchableOpacity>
-            <TouchableOpacity 
               onPress={() => setNotificationsVisible(true)} 
               style={styles.compactButton}
               activeOpacity={0.7}
@@ -1261,7 +1250,12 @@ useEffect(() => {
                   showInventoryButton={true}
                 />
               ) : null}
-              contentContainerStyle={[styles.itemsList, { paddingTop: TOTAL_HEADER_HEIGHT + insets.top + HEADER_TO_SHOPS_GAP }]}
+              contentContainerStyle={[
+                styles.itemsList, 
+                { 
+                  paddingTop: TOTAL_HEADER_HEIGHT + insets.top + HEADER_TO_SHOPS_GAP + (showLocationPopup ? 150 : 0) // Increased from 80 to 120px
+                }
+              ]}
               showsVerticalScrollIndicator={false}
               removeClippedSubviews={true}
               maxToRenderPerBatch={8}
@@ -1336,7 +1330,12 @@ useEffect(() => {
                   </View>
                 </TouchableOpacity>
               ) : null}
-              contentContainerStyle={[styles.shopsList, { paddingTop: TOTAL_HEADER_HEIGHT + insets.top + HEADER_TO_SHOPS_GAP }]}
+              contentContainerStyle={[
+                styles.shopsList, 
+                { 
+                  paddingTop: TOTAL_HEADER_HEIGHT + insets.top + HEADER_TO_SHOPS_GAP + (showLocationPopup ? 120 : 0) // Increased from 80 to 120px
+                }
+              ]}
               showsVerticalScrollIndicator={false}
               removeClippedSubviews={true}
               maxToRenderPerBatch={10}
@@ -1390,11 +1389,6 @@ useEffect(() => {
         />
       )}
 
-  <ShopMapModal
-        visible={showMap}
-        onClose={() => setShowMap(false)}
-        shops={allShops || []}
-      />
 
       {selectedShopForInventory && (
         <ShopInventoryModal
@@ -1731,7 +1725,8 @@ const styles = StyleSheet.create({
   locationPopup: {
     backgroundColor: "#FEF3C7",
     marginHorizontal: 16,
-    marginTop: 8,
+    marginTop: 2, // Further reduced margin
+    marginBottom: 12, // Increased bottom margin for more separation
     borderRadius: 16,
     shadowColor: "#F59E0B",
     shadowOffset: {
@@ -1741,16 +1736,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
-    zIndex: 5,
+    zIndex: 15, // Increase z-index to stay above content
     position: 'relative',
   },
   popupContent: {
-    padding: 16,
+    padding: 12, // Reduced padding to make popup more compact
   },
   popupHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 16,
+    marginBottom: 12, // Reduced from 16 to 12
     gap: 12,
   },
   popupTextContainer: {

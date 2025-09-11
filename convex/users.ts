@@ -297,7 +297,7 @@ export const getNearbyUsers = query({
         user.location.lat,
         user.location.lng
       );
-      
+      console.log("The radius set by shopkeeper is",args.radiusKm);
       return distance <= args.radiusKm;
     });
 
@@ -310,6 +310,44 @@ export const getNearbyUsers = query({
   },
 });
 
+export const getNearbyUsersForInApp = query({
+  args: {
+    shopLat: v.number(),
+    shopLng: v.number(),
+    radiusKm: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Get all users with location data and push notifications enabled
+    const allUsers = await ctx.db
+      .query("users")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("location"), undefined)
+        )
+      )
+      .collect();
+
+    // Filter users within radius using Haversine formula
+    const nearbyUsers = allUsers.filter(user => {
+      if (!user.location) return false;
+      
+      const distance = calculateDistance(
+        args.shopLat,
+        args.shopLng,
+        user.location.lat,
+        user.location.lng
+      );
+      console.log("The radius set by shopkeeper is",args.radiusKm);
+      return distance <= args.radiusKm;
+    });
+
+    return nearbyUsers.map(user => ({
+      _id: user._id,
+      name: user.name,
+      location: user.location,
+    }));
+  },
+});
 // Helper function to calculate distance between two points using Haversine formula
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371; // Earth's radius in kilometers
@@ -321,5 +359,6 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
     Math.sin(dLng/2) * Math.sin(dLng/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   const distance = R * c;
+  console.log("Distance calculated by calculateDistance is",distance);
   return distance;
 }

@@ -1,6 +1,7 @@
 import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+import { Doc, Id } from "./_generated/dataModel";
 
 export const createAdvertisement = mutation({
   args: {
@@ -114,19 +115,35 @@ export const sendNotificationsToNearbyUsers = mutation({
     shopLng: v.number(),
     radiusKm: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{
+    sent: number;
+    skipped: number;
+    total: number;
+    nearbyUsersCount: number;
+  }> => {
     // Get the advertisement
     const advertisement = await ctx.db.get(args.advertisementId);
     if (!advertisement) {
       throw new Error("Advertisement not found");
     }
 
-    // Get all users (in a real app, you'd filter by location)
-    const users = await ctx.db.query("users").collect();
-    
-    // Send notifications to ALL users (both customers and shopkeepers)
-    // Shopkeepers can view advertisements when in customer mode
-    const nearbyUsers = users;
+    // Get nearby users within the specified radius (matching push notification logic)
+    const nearbyUsers: {
+      _id: Id<"users">;
+      name: string;
+      location: {
+        address?: string | undefined;
+        lat: number;
+        lng: number;
+        lastUpdated: number;
+      } | undefined;
+    }[] = await ctx.runQuery(api.users.getNearbyUsersForInApp, {
+      shopLat: args.shopLat,
+      shopLng: args.shopLng,
+      radiusKm: args.radiusKm,
+    });
+
+    console.log(`📍 Found ${nearbyUsers.length} nearby users within ${args.radiusKm}km radius for in-app notifications`);
 
     let notificationCount = 0;
     let skippedCount = 0;
@@ -145,7 +162,7 @@ export const sendNotificationsToNearbyUsers = mutation({
         continue; // Skip this user, they already have this notification
       }
 
-      // Create notification for this user
+      // Create notification for this nearby user only
       await ctx.db.insert("notifications", {
         advertisementId: args.advertisementId,
         recipientUserId: user._id,
@@ -163,10 +180,13 @@ export const sendNotificationsToNearbyUsers = mutation({
       updatedAt: Date.now(),
     });
 
+    console.log(`✅ Created ${notificationCount} in-app notifications for nearby users, skipped ${skippedCount} existing notifications`);
+
     return {
       sent: notificationCount,
       skipped: skippedCount,
-      total: notificationCount + skippedCount
+      total: notificationCount + skippedCount,
+      nearbyUsersCount: nearbyUsers.length
     };
   },
 });
