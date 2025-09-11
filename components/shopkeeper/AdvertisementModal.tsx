@@ -164,7 +164,7 @@ export default function AdvertisementModal({
     const hasPermissions = await requestPermissions();
     if (!hasPermissions) return;
 
-    const options = ["Take Photo", "Choose from Gallery", "Cancel"];
+    const options = ["Take Photo", "Choose Photo", "Cancel"];
     
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -186,7 +186,7 @@ export default function AdvertisementModal({
         "Choose an option",
         [
           { text: "Take Photo", onPress: openCamera },
-          { text: "Choose from Gallery", onPress: openImageGallery },
+          { text: "Choose Photo", onPress: openImageGallery },
           { text: "Cancel", style: "cancel" },
         ]
       );
@@ -405,6 +405,15 @@ export default function AdvertisementModal({
       return;
     }
 
+    // Validate discount fields if discount is enabled
+    if (hasDiscount && (!discountPercentage.trim() && !discountText.trim())) {
+      Alert.alert(
+        "Please enter the discount", 
+        "You have enabled discount option. Please enter either discount percentage or discount text, or disable the discount option to proceed without discount."
+      );
+      return;
+    }
+
     if (editingAdvertisement) {
       // For editing, save immediately without terms
       await saveAdvertisementData();
@@ -415,6 +424,15 @@ export default function AdvertisementModal({
   };
 
   const saveAdvertisementData = async () => {
+    // Validate discount fields if discount is enabled
+    if (hasDiscount && (!discountPercentage.trim() && !discountText.trim())) {
+      Alert.alert(
+        "Please enter the discount", 
+        "You have enabled discount option. Please enter either discount percentage or discount text, or disable the discount option to proceed without discount."
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       // Upload new images

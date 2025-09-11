@@ -544,16 +544,16 @@ export default function ShopkeeperSidebar({
               </View>
 
               <View style={styles.helpSection}>
-                <Text style={styles.helpSectionTitle}>About Old Shop Status</Text>
+                <Text style={styles.helpSectionTitle}>About Availo</Text>
                 <Text style={styles.aboutText}>
-                  Old Shop Status helps local businesses manage their operating hours and 
+                  "Availo" helps local businesses to manage their operating hours and 
                   connect with customers in real-time. Share your shop's current status, 
-                  manage inventory, and help customers find what they need.
+                  manage inventory, and help customers to find what they need. Make your Business online with Availo. 
                 </Text>
                 
                 <Text style={styles.aboutText}>
                   Version 1.0.0{"\n"}
-                  Made with ❤️ for local businesses
+                  Made with ❤️ for local businesses.
                 </Text>
               </View>
 
@@ -562,19 +562,19 @@ export default function ShopkeeperSidebar({
                 <View style={styles.tipItem}>
                   <Ionicons name="bulb" size={16} color="#F59E0B" />
                   <Text style={styles.tipText}>
-                    Use the schedule feature to automatically close your shop
+                    Use the schedule feature to automatically close/open your shop.
                   </Text>
                 </View>
                 <View style={styles.tipItem}>
                   <Ionicons name="bulb" size={16} color="#F59E0B" />
                   <Text style={styles.tipText}>
-                    Keep your inventory updated to help customers find items
+                    Keep your inventory updated to help customers find items.
                   </Text>
                 </View>
                 <View style={styles.tipItem}>
                   <Ionicons name="bulb" size={16} color="#F59E0B" />
                   <Text style={styles.tipText}>
-                    Switch between shopkeeper and customer views anytime
+                    Switch between shopkeeper and customer views anytime.
                   </Text>
                 </View>
               </View>

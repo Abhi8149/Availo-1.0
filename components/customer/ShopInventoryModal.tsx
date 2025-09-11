@@ -465,7 +465,7 @@ export default function ShopInventoryModal({
         {/* Zoom Hint */}
         <View style={styles.fullscreenHint}>
           <Text style={styles.fullscreenHintText}>
-            Pinch to zoom • Double tap to zoom • Tap outside to close
+            {/* Pinch to zoom • Double tap to zoom • Tap outside to close */}
           </Text>
         </View>
       </View>

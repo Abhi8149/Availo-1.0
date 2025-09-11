@@ -137,12 +137,12 @@ export default function NotificationsModal({
         activeOpacity={0.8}
       >
         {/* Professional Ad Badge */}
-        <View style={[styles.adBadge, isTargetAd && styles.targetAdBadge]}>
+        {/* <View style={[styles.adBadge, isTargetAd && styles.targetAdBadge]}>
           <Ionicons name="megaphone" size={12} color="#FFFFFF" />
           <Text style={styles.adBadgeText}>
             {isTargetAd ? "📍 FROM NOTIFICATION" : "SPECIAL OFFER"}
           </Text>
-        </View>
+        </View> */}
 
       {/* Shop Info Header */}
       <View style={styles.adHeader}>
@@ -158,14 +158,17 @@ export default function NotificationsModal({
             </View>
           </View>
         </View>
-        <View style={styles.rightColumn}>
-          <View style={styles.timeContainer}>
-            <Ionicons name="time-outline" size={12} color="#6B7280" />
-            <Text style={styles.timeAgo}>{formatTimeAgo(item._creationTime)}</Text>
-          </View>
-          <View style={styles.viewMoreButtonCorner}>
-            <Text style={styles.viewMoreTextSmall}>Details</Text>
-          </View>
+        {/* Professional Ad Badge */}
+        <View style={[styles.adBadge, isTargetAd && styles.targetAdBadge]}>
+          <Ionicons name="megaphone" size={12} color="#FFFFFF" />
+          <Text style={styles.adBadgeText}>
+            {isTargetAd ? "📍 FROM NOTIFICATION" : "SPECIAL OFFER"}
+          </Text>
+        </View>
+        {/* Time Container in Corner */}
+        <View style={styles.timeContainer}>
+          <Ionicons name="time-outline" size={12} color="#6B7280" />
+          <Text style={styles.timeAgo}>{formatTimeAgo(item._creationTime)}</Text>
         </View>
       </View>
 
@@ -903,6 +906,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 6,
     minWidth: 80,
+  marginTop: 10, // Added gap from the special offer badge
   },
   viewMoreButton: {
     flexDirection: "row",
@@ -1033,9 +1037,17 @@ const styles = StyleSheet.create({
   
   // New Enhanced Styles
   timeContainer: {
+    position: "absolute",
+    top: 40,
+    right: 8,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    zIndex: 2,
   },
   viewMoreButtonCorner: {
     backgroundColor: "#EFF6FF",
