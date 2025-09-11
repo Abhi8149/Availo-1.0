@@ -693,7 +693,7 @@ export default function CustomerSidebar({
             <Text style={styles.ratingLabel}>How would you rate our app?</Text>
             <View style={styles.starsContainer}>{renderStars()}</View>
 
-            <Text style={styles.feedbackLabel}>Tell us more (optional):</Text>
+            <Text style={styles.feedbackLabel}>Tell us more about your thoughts :</Text>
             <TextInput
               style={styles.feedbackInput}
               multiline
@@ -773,9 +773,9 @@ export default function CustomerSidebar({
               </View>
 
               <View style={styles.helpSection}>
-                <Text style={styles.helpSectionTitle}>About Old Shop Status</Text>
+                <Text style={styles.helpSectionTitle}>About "Availo"</Text>
                 <Text style={styles.aboutText}>
-                  Old Shop Status helps you discover local businesses and find what 
+                  Availo helps you discover local businesses and find what 
                   you need. Check shop availability, browse inventories, and plan 
                   your shopping trips efficiently.
                 </Text>

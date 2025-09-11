@@ -85,6 +85,17 @@ export default function ItemDetailsModal({
     return icons[category] || "cube-outline";
   };
 
+  const handleAddToCart = () => {
+    if (onAddToCart && item) {
+      onAddToCart(item);
+      Alert.alert(
+        "Added to Cart",
+        `${item.name} has been added to your cart. Complete your booking by going to the shop details.`,
+        [{ text: "OK", style: "default" }]
+      );
+    }
+  };
+
   const styles = StyleSheet.create({
     offerSection: {
       marginBottom: 20,
@@ -467,7 +478,7 @@ export default function ItemDetailsModal({
         {/* Zoom Hint */}
         <View style={styles.fullscreenHint}>
           <Text style={styles.fullscreenHintText}>
-            Pinch to zoom • Double tap to zoom • Tap outside to close
+            {/* Pinch to zoom • Double tap to zoom • Tap outside to close */}
           </Text>
         </View>
       </View>
@@ -611,11 +622,11 @@ export default function ItemDetailsModal({
                         !item.inStock && styles.cartButtonDisabled,
                         isInCart && styles.cartButtonDisabled // Disable when already in cart
                       ]}
-                      onPress={() => !isInCart && item.inStock && onAddToCart(item)}
+                      onPress={() => !isInCart && item.inStock && handleAddToCart()}
                       disabled={!item.inStock || isInCart} // Disable when out of stock OR already in cart
                     >
                       <Ionicons 
-                        name={isInCart ? "cart" : "cart-outline"} 
+                        name={isInCart ? "checkmark-circle" : "cart-outline"} 
                         size={20} 
                         color={isInCart ? "#16A34A" : !item.inStock ? "#9CA3AF" : "#FFFFFF"} 
                       />
@@ -631,14 +642,10 @@ export default function ItemDetailsModal({
                     <View style={styles.deliveryMessageContainer}>
                       <Text style={styles.deliveryMessageText}>
                         {item.isDeliveryAvailable === false 
-                          ? "This shop does not offer delivery service" 
+                          ? "Delivery unavailable - This shop does not offer delivery service" 
                           : item.isDeliveryAvailable === true && item.isInDeliveryRange === false 
-                          ? "This shop is outside your delivery range"
-                          : "Delivery status unavailable"}
-                      </Text>
-                      {/* Debug info - remove this after testing */}
-                      <Text style={{fontSize: 10, color: '#666', marginTop: 5}}>
-                        {/* Debug: isDeliveryAvailable: {String(item.isDeliveryAvailable)}, isInDeliveryRange: {String(item.isInDeliveryRange)} */}
+                          ? "Delivery status out of range - This shop is outside your delivery range"
+                          : "Delivery status unavailable - Unable to determine delivery availability"}
                       </Text>
                     </View>
                   )}

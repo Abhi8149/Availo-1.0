@@ -849,9 +849,12 @@ useEffect(() => {
   const itemsDisplayData = useMemo(() => {
     if (searchMode === "items") {
       let items = allItemsWithShopInfo || [];
-      // Add shopName, shopId, and distance if available
+      // Add shopName, shopId, distance, and delivery info if available
       items = items.map(item => {
         let distance = null;
+        let isDeliveryAvailable = false;
+        let isInDeliveryRange = false;
+        
         if (userLocation && item?.shop?.location) {
           distance = calculateDistance(
             userLocation.latitude,
@@ -859,12 +862,23 @@ useEffect(() => {
             item.shop.location.lat,
             item.shop.location.lng
           );
+          
+          // Check delivery availability
+          isDeliveryAvailable = item.shop.hasDelivery === true;
+          
+          // Check if within delivery range (only if delivery is available)
+          if (isDeliveryAvailable && item.shop.deliveryRange && distance !== null) {
+            isInDeliveryRange = distance <= item.shop.deliveryRange;
+          }
         }
+        
         return {
           ...(item as any),
           shopName: item.shop?.name || '',
           shopId: item.shop?._id,
           distance,
+          isDeliveryAvailable,
+          isInDeliveryRange,
         };
       });
       if (userLocation) {
