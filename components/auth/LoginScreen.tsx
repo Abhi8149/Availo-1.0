@@ -139,6 +139,7 @@ export default function LoginScreen({ onAuthSuccess, onSwitchToRegister, onForgo
 
           <PasswordInput
             placeholder="Password"
+            placeholderTextColor="#888"
             style={styles.input}
             value={password}
             onChangeText={setPassword}

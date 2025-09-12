@@ -218,6 +218,7 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
             </View>
             <PasswordInput
               placeholder="Password (min 6 characters)"
+              placeholderTextColor="#888"
               style={styles.input}
               value={password}
               onChangeText={setPassword}

@@ -340,7 +340,7 @@ export const getNearbyUsersForInApp = query({
       console.log("The radius set by shopkeeper is",args.radiusKm);
       return distance <= args.radiusKm;
     });
-
+    console.log("Nearby users and there addresses are",nearbyUsers);
     return nearbyUsers.map(user => ({
       _id: user._id,
       name: user.name,

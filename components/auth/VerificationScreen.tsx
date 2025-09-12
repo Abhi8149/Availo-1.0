@@ -30,6 +30,7 @@ const VerificationScreen: React.FC<VerificationScreenProps> = ({ email, onVerify
       <TextInput
         style={styles.input}
         placeholder="Enter verification code"
+        placeholderTextColor="#888"
         value={code}
         onChangeText={setCode}
         keyboardType="number-pad"

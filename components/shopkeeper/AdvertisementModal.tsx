@@ -693,6 +693,7 @@ export default function AdvertisementModal({
                   value={message}
                   onChangeText={setMessage}
                   placeholder="Enter your advertisement message..."
+                  placeholderTextColor="#888"
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
@@ -854,6 +855,7 @@ export default function AdvertisementModal({
                             }
                           }}
                           placeholder="10"
+                          placeholderTextColor="#888"
                           keyboardType="numeric"
                           maxLength={2}
                         />
@@ -868,6 +870,7 @@ export default function AdvertisementModal({
                         value={discountText}
                         onChangeText={setDiscountText}
                         placeholder="e.g., 'Buy 2 Get 1 Free', 'Flash Sale', 'Limited Time Offer'"
+                        placeholderTextColor="#888"
                         multiline
                         numberOfLines={2}
                         textAlignVertical="top"

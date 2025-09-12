@@ -150,17 +150,17 @@ export const sendNotificationsToNearbyUsers = mutation({
     
     for (const user of nearbyUsers) {
       // Check if this specific user already has a notification for this advertisement
-      const existingNotification = await ctx.db
-        .query("notifications")
-        .withIndex("by_advertisement_recipient", (q) => 
-          q.eq("advertisementId", args.advertisementId).eq("recipientUserId", user._id)
-        )
-        .first();
+      // const existingNotification = await ctx.db
+      //   .query("notifications")
+      //   .withIndex("by_advertisement_recipient", (q) => 
+      //     q.eq("advertisementId", args.advertisementId).eq("recipientUserId", user._id)
+      //   )
+      //   .first();
       
-      if (existingNotification) {
-        skippedCount++;
-        continue; // Skip this user, they already have this notification
-      }
+      // if (existingNotification) {
+      //   skippedCount++;
+      //   continue; // Skip this user, they already have this notification
+      // }
 
       // Create notification for this nearby user only
       await ctx.db.insert("notifications", {

@@ -742,6 +742,7 @@ export default function ShopInventoryModal({
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Search items..."
+                    placeholderTextColor="#9CA3AF"
                     value={searchTerm}
                     onChangeText={setSearchTerm}
                     autoCapitalize="none"

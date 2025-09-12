@@ -200,7 +200,7 @@ export default function ShopkeeperSidebar({
           ]
         );
       } else {
-        Alert.alert("Error", error.message || "Failed to delete account. Please try again.");
+        Alert.alert("Error",  "Failed to delete account. Please try again.");
       }
     } finally {
       setDeleteLoading(false);
@@ -470,6 +470,7 @@ export default function ShopkeeperSidebar({
               multiline
               numberOfLines={4}
               placeholder="Share your thoughts, suggestions, or issues..."
+              placeholderTextColor="#888"
               value={feedbackText}
               onChangeText={setFeedbackText}
               textAlignVertical="top"
@@ -601,6 +602,7 @@ export default function ShopkeeperSidebar({
             <TextInput
               style={styles.passwordInput}
               placeholder="Enter your password"
+              placeholderTextColor="#888"
               value={deletePassword}
               onChangeText={setDeletePassword}
               secureTextEntry={true}
