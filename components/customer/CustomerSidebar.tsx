@@ -162,7 +162,7 @@ export default function CustomerSidebar({
 
   const handleContactSupport = (method: "email" | "phone") => {
     if (method === "email") {
-      const email = "piyushraj7308305@gmail.com";
+      const email = "availo0927@gmail.com";
       const subject = `Support Request from ${user.name}`;
       const body = `Hi Support Team,\n\nI need help with:\n\n[Please describe your issue here]\n\nUser Details:\nName: ${user.name}\nEmail: ${user.email}\nRole: ${user.role}\n\nThank you!`;
       
@@ -754,7 +754,7 @@ export default function CustomerSidebar({
                   <View style={styles.contactOptionText}>
                     <Text style={styles.contactOptionTitle}>Email Support</Text>
                     <Text style={styles.contactOptionSubtitle}>
-                      piyushraj7308305@gmail.com
+                      availo0927@gmail.com
                     </Text>
                   </View>
                 </TouchableOpacity>

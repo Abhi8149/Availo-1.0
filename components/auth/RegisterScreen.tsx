@@ -69,7 +69,7 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
       await sendVerificationCode({ email: email.toLowerCase().trim(), userId: tempUserId });
       setShowVerification(true);
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Registration failed. Please try again.");
+      Alert.alert("Error", "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }

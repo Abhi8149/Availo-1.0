@@ -21,7 +21,7 @@
         "EXPO_PUBLIC_LOCATIONIQ_API_KEY":"pk.2e5d70a914f544ff9b993af9ac29d478"
       },
       "android": {
-        "buildType": "aab"
+        "buildType": "apk"
       },
       "channel": "production"
     }

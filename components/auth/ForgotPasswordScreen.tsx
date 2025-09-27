@@ -49,7 +49,7 @@ export default function ForgotPasswordScreen({ onAuthSuccess, onBackToLogin }: F
       }
     } catch (error: any) {
       console.error('Send code error:', error);
-      Alert.alert("Error", error.message || "Failed to send verification code. Please try again.");
+      Alert.alert("Error", "Failed to send verification code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -87,7 +87,7 @@ export default function ForgotPasswordScreen({ onAuthSuccess, onBackToLogin }: F
       }
     } catch (error: any) {
       console.error('Verify code error:', error);
-      Alert.alert("Error", error.message || "Invalid verification code. Please try again.");
+      Alert.alert("Error", "Invalid verification code. Please try again.");
     } finally {
       setLoading(false);
     }

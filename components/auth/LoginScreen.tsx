@@ -104,7 +104,7 @@ export default function LoginScreen({ onAuthSuccess, onSwitchToRegister, onForgo
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      Alert.alert("Error", error.message || "Invalid email or password");
+      Alert.alert("Error", "Invalid email or password");
     } finally {
       setLoading(false);
     }
