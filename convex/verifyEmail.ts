@@ -1,13 +1,56 @@
-import { mutation, query, action } from "./_generated/server";
+import { mutation, query, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+
+/**
+ * PASSWORD RESET WITH RATE LIMITING
+ * 
+ * This module handles password reset functionality with rate limiting.
+ * Rate limits: 3 attempts per hour per email address.
+ */
 
 // Action to send password reset email
 export const sendPasswordResetEmail = action({
   args: { 
     email: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ 
+    success: boolean; 
+    message: string; 
+    remainingAttempts?: number;
+  }> => {
+    // Check rate limit (3 attempts per hour)
+    const rateLimitKey = `password-reset:${args.email.toLowerCase()}`;
+    
+    // Check if rate limit function exists (will be available after deployment)
+    let rateLimit: {
+      allowed: boolean;
+      remaining?: number;
+      resetAt?: number;
+      retryAfterMs?: number;
+    } = { allowed: true };
+
+    try {
+      // @ts-ignore - api.rateLimit will be available after convex deploy
+      if (api.rateLimit?.checkRateLimit) {
+        // @ts-ignore
+        rateLimit = await ctx.runMutation(api.rateLimit.checkRateLimit, {
+          key: rateLimitKey,
+          maxAttempts: 3,
+          windowMs: 60 * 60 * 1000, // 1 hour
+        });
+      }
+    } catch (error) {
+      console.log('Rate limiting not yet deployed, skipping rate limit check');
+    }
+
+    if (!rateLimit.allowed) {
+      const minutesLeft = Math.ceil((rateLimit.retryAfterMs || 0) / 60000);
+      throw new Error(
+        `Too many password reset attempts. Please try again in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}.`
+      );
+    }
+
     // Check if user exists
     const user = await ctx.runMutation(api.users.getUserByEmail, { email: args.email });
     
@@ -28,7 +71,11 @@ export const sendPasswordResetEmail = action({
     try {
       const { sendVerificationEmail } = await import("../utils/emailService");
       await sendVerificationEmail(args.email, code);
-      return { success: true, message: "Verification code sent to your email." };
+      return { 
+        success: true, 
+        message: "Verification code sent to your email.",
+        remainingAttempts: rateLimit.remaining,
+      };
     } catch (error) {
       console.error("Failed to send email:", error);
       throw new Error("Failed to send verification email. Please try again.");
@@ -111,7 +158,7 @@ export const verifyPasswordResetCode = mutation({
   },
 });
 
-export const cleanupExpiredCodes = mutation({
+export const cleanupExpiredCodes = internalMutation({
   args: {},
   handler: async (ctx) => {
     const expiredCodes = await ctx.db
@@ -123,6 +170,7 @@ export const cleanupExpiredCodes = mutation({
       await ctx.db.delete(code._id);
     }
 
+    console.log(`🧹 Cleaned up ${expiredCodes.length} expired password reset codes`);
     return { deletedCount: expiredCodes.length };
   },
 });

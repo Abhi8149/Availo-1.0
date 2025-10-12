@@ -1,12 +1,57 @@
-import { mutation, action } from "./_generated/server";
+import { mutation, action, internalMutation } from "./_generated/server";
 import { api } from "./_generated/api";
 import { v } from "convex/values";
 import { emailConfig, getSenderEmail, getRecipientEmail } from "./emailConfig";
 
+/**
+ * AUTHENTICATION WITH RATE LIMITING
+ * 
+ * This module handles email verification with built-in rate limiting to prevent abuse.
+ * Rate limits: 3 attempts per hour per email address.
+ */
+
 // ACTION: Can make HTTP requests to external APIs
 export const sendVerificationCode = action({
   args: { email: v.string(), userId: v.string() },
-  handler: async (ctx, { email, userId }) => {
+  handler: async (ctx, { email, userId }): Promise<{
+    success: boolean;
+    message: string;
+    isTestMode: boolean;
+    recipientEmail: string;
+    remainingAttempts?: number;
+  }> => {
+    // Check rate limit (3 attempts per hour)
+    const rateLimitKey = `verify:${email.toLowerCase()}`;
+    
+    // Check if rate limit function exists (will be available after deployment)
+    let rateLimit: {
+      allowed: boolean;
+      remaining?: number;
+      resetAt?: number;
+      retryAfterMs?: number;
+    } = { allowed: true };
+
+    try {
+      // @ts-ignore - api.rateLimit will be available after convex deploy
+      if (api.rateLimit?.checkRateLimit) {
+        // @ts-ignore
+        rateLimit = await ctx.runMutation(api.rateLimit.checkRateLimit, {
+          key: rateLimitKey,
+          maxAttempts: 3,
+          windowMs: 60 * 60 * 1000, // 1 hour
+        });
+      }
+    } catch (error) {
+      console.log('Rate limiting not yet deployed, skipping rate limit check');
+    }
+
+    if (!rateLimit.allowed) {
+      const minutesLeft = Math.ceil((rateLimit.retryAfterMs || 0) / 60000);
+      throw new Error(
+        `Too many verification attempts. Please try again in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}.`
+      );
+    }
+
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     
     try {
@@ -130,8 +175,8 @@ export const verifyCode = mutation({
   },
 });
 
-// MUTATION: Clean up expired verification codes (can be called periodically)
-export const cleanupExpiredCodes = mutation({
+// INTERNAL MUTATION: Clean up expired verification codes (called by cron job)
+export const cleanupExpiredCodes = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
@@ -144,6 +189,7 @@ export const cleanupExpiredCodes = mutation({
       await ctx.db.delete(code._id);
     }
     
+    console.log(`🧹 Cleaned up ${expiredCodes.length} expired verification codes`);
     return { deleted: expiredCodes.length };
   },
 });

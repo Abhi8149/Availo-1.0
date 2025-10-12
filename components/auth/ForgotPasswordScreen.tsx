@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,15 @@ import { useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
+/**
+ * FORGOT PASSWORD SCREEN WITH PERFORMANCE OPTIMIZATION
+ * 
+ * Performance optimizations:
+ * - useMemo for email validation to prevent recalculation
+ * - useCallback for stable function references
+ * - Memoized button disabled states
+ */
+
 interface ForgotPasswordScreenProps {
   onAuthSuccess: (userId: Id<"users">) => void;
   onBackToLogin: () => void;
@@ -28,7 +37,24 @@ export default function ForgotPasswordScreen({ onAuthSuccess, onBackToLogin }: F
   const sendPasswordResetEmail = useAction(api.verifyEmail.sendPasswordResetEmail);
   const verifyPasswordResetCode = useMutation(api.verifyEmail.verifyPasswordResetCode);
 
-  const handleSendCode = async () => {
+  // Memoize email validation
+  const isValidEmail = useMemo(() => {
+    if (!email.trim()) return false;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+  }, [email]);
+
+  // Memoize button disabled states
+  const isSendButtonDisabled = useMemo(() => {
+    return loading || !isValidEmail;
+  }, [loading, isValidEmail]);
+
+  const isVerifyButtonDisabled = useMemo(() => {
+    return loading || verificationCode.trim().length !== 6;
+  }, [loading, verificationCode]);
+
+  // Use useCallback to prevent function recreation on each render
+  const handleSendCode = useCallback(async () => {
     if (!email.trim()) {
       Alert.alert("Error", "Please enter your email address");
       return;
@@ -53,9 +79,9 @@ export default function ForgotPasswordScreen({ onAuthSuccess, onBackToLogin }: F
     } finally {
       setLoading(false);
     }
-  };
+  }, [email, sendPasswordResetEmail]);
 
-  const handleVerifyCode = async () => {
+  const handleVerifyCode = useCallback(async () => {
     if (!verificationCode.trim()) {
       Alert.alert("Error", "Please enter the verification code");
       return;
@@ -91,9 +117,14 @@ export default function ForgotPasswordScreen({ onAuthSuccess, onBackToLogin }: F
     } finally {
       setLoading(false);
     }
-  };
+  }, [email, verificationCode, verifyPasswordResetCode, onAuthSuccess]);
 
-  const renderEmailStep = () => (
+  const handleChangeEmail = useCallback(() => {
+    setStep("email");
+    setVerificationCode("");
+  }, []);
+
+  const renderEmailStep = useCallback(() => (
     <>
       <View style={styles.header}>
         <Ionicons name="lock-closed" size={64} color="#2563EB" />
@@ -117,9 +148,9 @@ export default function ForgotPasswordScreen({ onAuthSuccess, onBackToLogin }: F
         </View>
 
         <TouchableOpacity 
-          style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+          style={[styles.primaryButton, isSendButtonDisabled && styles.primaryButtonDisabled]}
           onPress={handleSendCode}
-          disabled={loading}
+          disabled={isSendButtonDisabled}
         >
           <Text style={styles.primaryButtonText}>
             {loading ? "Sending Code..." : "Send Verification Code"}
@@ -132,9 +163,9 @@ export default function ForgotPasswordScreen({ onAuthSuccess, onBackToLogin }: F
         </TouchableOpacity>
       </View>
     </>
-  );
+  ), [email, setEmail, loading, isSendButtonDisabled, handleSendCode, onBackToLogin]);
 
-  const renderVerificationStep = () => (
+  const renderVerificationStep = useCallback(() => (
     <>
       <View style={styles.header}>
         <Ionicons name="mail" size={64} color="#2563EB" />
@@ -159,9 +190,9 @@ export default function ForgotPasswordScreen({ onAuthSuccess, onBackToLogin }: F
         </View>
 
         <TouchableOpacity 
-          style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+          style={[styles.primaryButton, isVerifyButtonDisabled && styles.primaryButtonDisabled]}
           onPress={handleVerifyCode}
-          disabled={loading}
+          disabled={isVerifyButtonDisabled}
         >
           <Text style={styles.primaryButtonText}>
             {loading ? "Verifying..." : "Verify Code"}
@@ -169,10 +200,7 @@ export default function ForgotPasswordScreen({ onAuthSuccess, onBackToLogin }: F
         </TouchableOpacity>
 
         <TouchableOpacity 
-          onPress={() => {
-            setStep("email");
-            setVerificationCode("");
-          }} 
+          onPress={handleChangeEmail} 
           style={styles.backButton}
         >
           <Ionicons name="arrow-back" size={16} color="#2563EB" />
@@ -190,7 +218,7 @@ export default function ForgotPasswordScreen({ onAuthSuccess, onBackToLogin }: F
         </TouchableOpacity>
       </View>
     </>
-  );
+  ), [email, verificationCode, setVerificationCode, loading, isVerifyButtonDisabled, handleVerifyCode, handleChangeEmail, handleSendCode]);
 
   return (
     <KeyboardAvoidingView 

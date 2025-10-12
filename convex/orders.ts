@@ -1,6 +1,14 @@
 import { v } from "convex/values";
 import { mutation, query, action } from "./_generated/server";
 import { api } from "./_generated/api";
+import { paginationOptsValidator } from "convex/server";
+
+/**
+ * ORDERS MODULE WITH PAGINATION
+ * 
+ * This module handles order management with pagination for better performance at scale.
+ * Includes optimized queries using database indexes for fast retrieval.
+ */
 
 // Create a new order when customer books items
 export const createOrder = mutation({
@@ -48,29 +56,59 @@ export const createOrder = mutation({
   },
 });
 
-// Get orders for a specific shop
+// Get orders for a specific shop (with pagination)
 export const getShopOrders = query({
-  args: { shopId: v.id("shops") },
+  args: { 
+    shopId: v.id("shops"),
+    paginationOpts: v.optional(paginationOptsValidator),
+  },
   handler: async (ctx, args) => {
-    const orders = await ctx.db
-      .query("orders")
-      .withIndex("by_shop", (q) => q.eq("shopId", args.shopId))
-      .order("desc")
-      .collect();
-    
-    // Enhance orders with customer information
-    const enhancedOrders = await Promise.all(
-      orders.map(async (order) => {
-        const customer = await ctx.db.get(order.customerId);
-        return {
-          ...order,
-          customerName: customer?.name || "Unknown Customer",
-          customerMobile: customer?.phone || null,
-        };
-      })
-    );
-    
-    return enhancedOrders;
+    if (args.paginationOpts) {
+      // Paginated version
+      const result = await ctx.db
+        .query("orders")
+        .withIndex("by_shop", (q) => q.eq("shopId", args.shopId))
+        .order("desc")
+        .paginate(args.paginationOpts);
+      
+      // Enhance orders with customer information
+      const enhancedOrders = await Promise.all(
+        result.page.map(async (order) => {
+          const customer = await ctx.db.get(order.customerId);
+          return {
+            ...order,
+            customerName: customer?.name || "Unknown Customer",
+            customerMobile: customer?.phone || null,
+          };
+        })
+      );
+      
+      return {
+        ...result,
+        page: enhancedOrders,
+      };
+    } else {
+      // Legacy non-paginated version for backward compatibility
+      const orders = await ctx.db
+        .query("orders")
+        .withIndex("by_shop", (q) => q.eq("shopId", args.shopId))
+        .order("desc")
+        .collect();
+      
+      // Enhance orders with customer information
+      const enhancedOrders = await Promise.all(
+        orders.map(async (order) => {
+          const customer = await ctx.db.get(order.customerId);
+          return {
+            ...order,
+            customerName: customer?.name || "Unknown Customer",
+            customerMobile: customer?.phone || null,
+          };
+        })
+      );
+      
+      return enhancedOrders;
+    }
   },
 });
 
@@ -210,28 +248,57 @@ export const updateOrderStatus = mutation({
   },
 });
 
-// Get orders for a customer
+// Get orders for a customer (with pagination)
 export const getCustomerOrders = query({
-  args: { customerId: v.id("users") },
+  args: { 
+    customerId: v.id("users"),
+    paginationOpts: v.optional(paginationOptsValidator),
+  },
   handler: async (ctx, args) => {
-    const orders = await ctx.db
-      .query("orders")
-      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
-      .order("desc")
-      .collect();
-    
-    // Enhance orders with shop information
-    const enhancedOrders = await Promise.all(
-      orders.map(async (order) => {
-        const shop = await ctx.db.get(order.shopId);
-        return {
-          ...order,
-          shopName: shop?.name || "Unknown Shop",
-        };
-      })
-    );
-    
-    return enhancedOrders;
+    if (args.paginationOpts) {
+      // Paginated version
+      const result = await ctx.db
+        .query("orders")
+        .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
+        .order("desc")
+        .paginate(args.paginationOpts);
+      
+      // Enhance orders with shop information
+      const enhancedOrders = await Promise.all(
+        result.page.map(async (order) => {
+          const shop = await ctx.db.get(order.shopId);
+          return {
+            ...order,
+            shopName: shop?.name || "Unknown Shop",
+          };
+        })
+      );
+      
+      return {
+        ...result,
+        page: enhancedOrders,
+      };
+    } else {
+      // Legacy non-paginated version
+      const orders = await ctx.db
+        .query("orders")
+        .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
+        .order("desc")
+        .collect();
+      
+      // Enhance orders with shop information
+      const enhancedOrders = await Promise.all(
+        orders.map(async (order) => {
+          const shop = await ctx.db.get(order.shopId);
+          return {
+            ...order,
+            shopName: shop?.name || "Unknown Shop",
+          };
+        })
+      );
+      
+      return enhancedOrders;
+    }
   },
 });
 

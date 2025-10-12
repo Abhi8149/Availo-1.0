@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,24 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
-  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
+
+/**
+ * SIMPLE ADMIN PANEL WITH PAGINATION AND PERFORMANCE OPTIMIZATION
+ * 
+ * Performance optimizations:
+ * - Active pagination (loads 20 shops at a time)
+ * - Infinite scroll with "Load More" functionality
+ * - FlatList with performance props (removeClippedSubviews, maxToRenderPerBatch, etc.)
+ * - useCallback for stable function references
+ * - useMemo for expensive calculations
+ * - Proper keyExtractor for efficient list rendering
+ */
 
 interface SimpleAdminPanelProps {
   visible: boolean;
@@ -24,14 +36,79 @@ export default function SimpleAdminPanel({ visible, onClose }: SimpleAdminPanelP
   const [verificationNotes, setVerificationNotes] = useState('');
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [actionType, setActionType] = useState<'verify' | 'unverify'>('verify');
+  
+  // Pagination state
+  const [allShops, setAllShops] = useState<any[]>([]);
+  const [currentCursor, setCurrentCursor] = useState<string | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Queries and mutations
-  const shops = useQuery(api.admin.getAllShopsForVerification);
+  // Queries and mutations - WITH PAGINATION ACTIVE
+  const shopsData = useQuery(api.admin.getAllShopsForVerification, {
+    paginationOpts: {
+      numItems: 20,
+      cursor: currentCursor,
+    },
+  });
   const stats = useQuery(api.admin.getVerificationStats);
   const verifyShop = useMutation(api.admin.verifyShop);
   const unverifyShop = useMutation(api.admin.unverifyShop);
 
-  const handleVerificationAction = async (shop: any, action: 'verify' | 'unverify') => {
+  // Extract shops from paginated response and accumulate
+  const shops = useMemo(() => {
+    if (!shopsData) return allShops;
+    
+    // Check if it's a paginated result
+    if (shopsData && typeof shopsData === 'object' && 'page' in shopsData) {
+      // Paginated response
+      const newShops = shopsData.page || [];
+      
+      // If this is the first page (no cursor), replace all shops
+      if (currentCursor === null) {
+        setAllShops(newShops);
+        return newShops;
+      }
+      
+      // If loading more, append to existing shops
+      if (isLoadingMore) {
+        const combined = [...allShops, ...newShops];
+        setAllShops(combined);
+        setIsLoadingMore(false);
+        return combined;
+      }
+      
+      return allShops.length > 0 ? allShops : newShops;
+    }
+    
+    // Fallback for non-paginated response (shouldn't happen now)
+    const shopArray = Array.isArray(shopsData) ? shopsData : [];
+    setAllShops(shopArray);
+    return shopArray;
+  }, [shopsData, currentCursor, isLoadingMore, allShops]);
+
+  // Check if more data is available
+  const hasMore = useMemo(() => {
+    if (!shopsData) return false;
+    return shopsData && typeof shopsData === 'object' && 'isDone' in shopsData 
+      ? !shopsData.isDone 
+      : false;
+  }, [shopsData]);
+
+  // Load more function
+  const handleLoadMore = useCallback(() => {
+    if (!shopsData || isLoadingMore || !hasMore) return;
+    
+    if (shopsData && typeof shopsData === 'object' && 'continueCursor' in shopsData) {
+      const nextCursor = shopsData.continueCursor;
+      if (nextCursor) {
+        console.log('📄 Loading more shops... Current count:', allShops.length);
+        setIsLoadingMore(true);
+        setCurrentCursor(nextCursor);
+      }
+    }
+  }, [shopsData, isLoadingMore, hasMore, allShops.length]);
+
+  // Memoize handleVerificationAction with useCallback
+  const handleVerificationAction = useCallback(async (shop: any, action: 'verify' | 'unverify') => {
     try {
       if (action === 'verify') {
         await verifyShop({
@@ -49,17 +126,19 @@ export default function SimpleAdminPanel({ visible, onClose }: SimpleAdminPanelP
     } catch (error) {
       Alert.alert('Error', 'Failed to update verification status');
     }
-  };
+  }, [verifyShop, unverifyShop]);
 
-  const formatDate = (timestamp: number) => {
+  // Memoize formatDate function
+  const formatDate = useCallback((timestamp: number) => {
     return new Date(timestamp).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
-  };
+  }, []);
 
-  const renderShopItem = ({ item }: { item: any }) => (
+  // Memoize renderShopItem with useCallback
+  const renderShopItem = useCallback(({ item }: { item: any }) => (
     <View style={styles.shopCard}>
       <View style={styles.shopHeader}>
         <View style={styles.shopInfo}>
@@ -103,7 +182,48 @@ export default function SimpleAdminPanel({ visible, onClose }: SimpleAdminPanelP
         )}
       </View>
     </View>
-  );
+  ), [handleVerificationAction, formatDate]);
+
+  // Memoize keyExtractor
+  const keyExtractor = useCallback((item: any) => item._id, []);
+
+  // Memoize getItemLayout for better performance
+  const getItemLayout = useCallback((data: any, index: number) => ({
+    length: 200, // Approximate height of shop card
+    offset: 200 * index,
+    index,
+  }), []);
+
+  // Render loading footer
+  const renderFooter = useCallback(() => {
+    if (!hasMore && shops.length > 0) {
+      return (
+        <View style={styles.footerContainer}>
+          <Text style={styles.footerText}>✓ All shops loaded ({shops.length} total)</Text>
+        </View>
+      );
+    }
+    
+    if (isLoadingMore || (hasMore && shops.length > 0)) {
+      return (
+        <View style={styles.footerContainer}>
+          <ActivityIndicator size="small" color="#2563EB" />
+          <Text style={styles.footerLoadingText}>Loading more shops...</Text>
+        </View>
+      );
+    }
+    
+    return null;
+  }, [hasMore, shops.length, isLoadingMore]);
+
+  // Render empty state
+  const renderEmpty = useCallback(() => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="storefront-outline" size={64} color="#D1D5DB" />
+      <Text style={styles.emptyTitle}>No Shops Found</Text>
+      <Text style={styles.emptySubtitle}>There are no shops to verify at the moment</Text>
+    </View>
+  ), []);
 
   return (
     <Modal
@@ -145,16 +265,35 @@ export default function SimpleAdminPanel({ visible, onClose }: SimpleAdminPanelP
                 <Text style={styles.statLabel}>Rate</Text>
               </View>
             </View>
+            {/* Pagination indicator */}
+            <View style={styles.paginationInfo}>
+              <Ionicons name="layers-outline" size={14} color="#6B7280" />
+              <Text style={styles.paginationText}>
+                Showing {shops.length} of {stats.total} shops {hasMore && '• Scroll for more'}
+              </Text>
+            </View>
           </View>
         )}
 
-        {/* Shops List */}
+        {/* Shops List with Pagination */}
         <FlatList
           data={shops || []}
-          keyExtractor={(item) => item._id}
+          keyExtractor={keyExtractor}
           renderItem={renderShopItem}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          windowSize={10}
+          getItemLayout={getItemLayout}
+          // Pagination - Load more on scroll
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderFooter}
+          ListEmptyComponent={renderEmpty}
         />
       </View>
     </Modal>
@@ -325,5 +464,53 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontWeight: '600',
     fontSize: 14,
+  },
+  paginationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    gap: 6,
+  },
+  paginationText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  footerContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#10B981',
+    fontWeight: '500',
+  },
+  footerLoadingText: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

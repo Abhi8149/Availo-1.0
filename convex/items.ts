@@ -1,5 +1,13 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
+
+/**
+ * ITEMS MODULE WITH PAGINATION
+ * 
+ * This module handles item management with pagination and optimized search.
+ * Uses database indexes for fast queries on large datasets.
+ */
 
 export const createItem = mutation({
   args: {
@@ -36,13 +44,26 @@ export const createItem = mutation({
 });
 
 export const getItemsByShop = query({
-  args: { shopId: v.id("shops") },
+  args: { 
+    shopId: v.id("shops"),
+    paginationOpts: v.optional(paginationOptsValidator),
+  },
   handler: async (ctx, args) => {
-    return await ctx.db
-      .query("items")
-      .withIndex("by_shop", (q) => q.eq("shopId", args.shopId))
-      .order("desc")
-      .collect();
+    if (args.paginationOpts) {
+      // Paginated version
+      return await ctx.db
+        .query("items")
+        .withIndex("by_shop", (q) => q.eq("shopId", args.shopId))
+        .order("desc")
+        .paginate(args.paginationOpts);
+    } else {
+      // Legacy non-paginated version
+      return await ctx.db
+        .query("items")
+        .withIndex("by_shop", (q) => q.eq("shopId", args.shopId))
+        .order("desc")
+        .collect();
+    }
   },
 });
 

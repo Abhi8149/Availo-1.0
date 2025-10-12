@@ -23,7 +23,11 @@ export default defineSchema({
     // Legacy fields for backward compatibility
     fcmToken: v.optional(v.string()),
     pushToken: v.optional(v.string()),
-  }).index("by_email", ["email"]),
+  })
+    .index("by_email", ["email"])
+    .index("by_role", ["role"])
+    .index("by_creation", ["createdAt"])
+    .index("by_onesignal", ["oneSignalPlayerId"]),
 
   shops: defineTable({
     ownerUid: v.id("users"),
@@ -58,7 +62,11 @@ export default defineSchema({
   })
     .index("by_owner", ["ownerUid"])
     .index("by_category", ["category"])
-    .index("by_status", ["isOpen"]),
+    .index("by_status", ["isOpen"])
+    .index("by_verification", ["isVerified"])
+    .index("by_creation", ["createdAt"])
+    .index("by_category_status", ["category", "isOpen"])
+    .index("by_owner_status", ["ownerUid", "isOpen"]),
 
   items: defineTable({
     shopId: v.id("shops"),
@@ -78,7 +86,10 @@ export default defineSchema({
     .index("by_shop", ["shopId"])
     .index("by_shop_and_stock", ["shopId", "inStock"])
     .index("by_name", ["name"])
-    .index("by_barcode", ["barcode"]),
+    .index("by_barcode", ["barcode"])
+    .index("by_category", ["category"])
+    .index("by_creation", ["createdAt"])
+    .index("by_shop_category", ["shopId", "category"]),
 
   advertisements: defineTable({
     shopId: v.id("shops"),
@@ -148,7 +159,10 @@ export default defineSchema({
     .index("by_shop", ["shopId"])
     .index("by_customer", ["customerId"])
     .index("by_status", ["status"])
-    .index("by_shop_status", ["shopId", "status"]),
+    .index("by_shop_status", ["shopId", "status"])
+    .index("by_customer_status", ["customerId", "status"])
+    .index("by_creation", ["createdAt"])
+    .index("by_placed_at", ["placedAt"]),
 
   verificationCodes: defineTable({
     userId: v.string(),
@@ -168,5 +182,16 @@ export default defineSchema({
     used: v.boolean(),
   })
     .index("by_email", ["email"])
-    .index("by_email_code", ["email", "code"]),
+    .index("by_email_code", ["email", "code"])
+    .index("by_expiration", ["expiresAt"]),
+  
+  // Rate limiting table for authentication and email operations
+  rateLimits: defineTable({
+    key: v.string(), // e.g., "email:user@example.com" or "ip:192.168.1.1"
+    attempts: v.number(),
+    expiresAt: v.number(),
+    lastAttempt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_expiration", ["expiresAt"]),
 });

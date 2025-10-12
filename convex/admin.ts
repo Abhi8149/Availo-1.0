@@ -1,8 +1,75 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 
-// Get all shops with verification status for admin dashboard
+// Get all shops with verification status for admin dashboard (with optional pagination)
 export const getAllShopsForVerification = query({
+  args: { 
+    paginationOpts: v.optional(paginationOptsValidator),
+  },
+  handler: async (ctx, args) => {
+    // If pagination options provided, use paginated query
+    if (args.paginationOpts) {
+      const result = await ctx.db
+        .query("shops")
+        .order("desc")
+        .paginate(args.paginationOpts);
+
+      // Get shopkeeper details for each shop
+      const shopsWithOwners = await Promise.all(
+        result.page.map(async (shop) => {
+          const owner = await ctx.db.get(shop.ownerUid);
+          return {
+            _id: shop._id,
+            name: shop.name,
+            category: shop.category,
+            isOpen: shop.isOpen,
+            isVerified: shop.isVerified || false,
+            verifiedAt: shop.verifiedAt,
+            createdAt: shop._creationTime,
+            lastUpdated: shop.lastUpdated,
+            ownerName: owner?.name || "Unknown",
+            ownerEmail: owner?.email || "Unknown",
+          };
+        })
+      );
+
+      return {
+        ...result,
+        page: shopsWithOwners,
+      };
+    }
+
+    // Otherwise, return all shops (backward compatible)
+    const shops = await ctx.db
+      .query("shops")
+      .collect();
+
+    // Get shopkeeper details for each shop
+    const shopsWithOwners = await Promise.all(
+      shops.map(async (shop) => {
+        const owner = await ctx.db.get(shop.ownerUid);
+        return {
+          _id: shop._id,
+          name: shop.name,
+          category: shop.category,
+          isOpen: shop.isOpen,
+          isVerified: shop.isVerified || false,
+          verifiedAt: shop.verifiedAt,
+          createdAt: shop._creationTime,
+          lastUpdated: shop.lastUpdated,
+          ownerName: owner?.name || "Unknown",
+          ownerEmail: owner?.email || "Unknown",
+        };
+      })
+    );
+
+    return shopsWithOwners.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
+// Legacy function for backward compatibility - returns all shops
+export const getAllShopsForVerificationLegacy = query({
   args: {},
   handler: async (ctx) => {
     const shops = await ctx.db
