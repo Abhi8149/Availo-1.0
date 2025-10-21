@@ -93,7 +93,18 @@ export default function ShopInventoryModal({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const fadeAnim = React.useRef(new Animated.Value(1)).current;
 
-  const items = useQuery(api.items.getItemsByShop, { shopId: shop._id });
+  const itemsResult = useQuery(api.items.getItemsByShop, { shopId: shop._id });
+  
+  // Extract items array from pagination result or use as-is if it's already an array
+  const items = React.useMemo(() => {
+    if (!itemsResult) return null;
+    // Check if it's a pagination result with 'results' property
+    if (typeof itemsResult === 'object' && itemsResult !== null && 'results' in itemsResult) {
+      return (itemsResult as { results: any[] }).results;
+    }
+    // Otherwise, assume it's already an array
+    return Array.isArray(itemsResult) ? itemsResult : null;
+  }, [itemsResult]);
 
   // Function to calculate distance between two coordinates using Haversine formula
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -800,11 +811,11 @@ export default function ShopInventoryModal({
                 <Animated.View style={[styles.emptyState, { opacity: fadeAnim }]}>
                   <Ionicons name="cube-outline" size={64} color="#9CA3AF" />
                   <Text style={styles.emptyTitle}>
-                    {items === undefined ? "Loading..." : 
+                    {items === null || items === undefined ? "Loading..." : 
                      items.length === 0 ? "No items available" : "No items match your search"}
                   </Text>
                   <Text style={styles.emptySubtitle}>
-                    {items === undefined ? "Please wait..." :
+                    {items === null || items === undefined ? "Please wait..." :
                      items.length === 0 ? "This shop hasn't added any items yet" :
                      "Try adjusting your search or category filter"}
                   </Text>

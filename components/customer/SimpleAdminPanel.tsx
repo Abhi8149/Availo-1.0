@@ -26,10 +26,21 @@ export default function SimpleAdminPanel({ visible, onClose }: SimpleAdminPanelP
   const [actionType, setActionType] = useState<'verify' | 'unverify'>('verify');
 
   // Queries and mutations
-  const shops = useQuery(api.admin.getAllShopsForVerification);
+  const shopsResult = useQuery(api.admin.getAllShopsForVerification, {});
   const stats = useQuery(api.admin.getVerificationStats);
   const verifyShop = useMutation(api.admin.verifyShop);
   const unverifyShop = useMutation(api.admin.unverifyShop);
+
+  // Extract shops array from pagination result or use as-is if it's already an array
+  const shops = React.useMemo(() => {
+    if (!shopsResult) return [];
+    // Check if it's a pagination result with 'page' property
+    if (typeof shopsResult === 'object' && 'page' in shopsResult) {
+      return (shopsResult as { page: any[] }).page;
+    }
+    // Otherwise, assume it's already an array
+    return Array.isArray(shopsResult) ? shopsResult : [];
+  }, [shopsResult]);
 
   const handleVerificationAction = async (shop: any, action: 'verify' | 'unverify') => {
     try {

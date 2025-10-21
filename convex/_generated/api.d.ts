@@ -22,6 +22,7 @@ import type * as emailConfig from "../emailConfig.js";
 import type * as files from "../files.js";
 import type * as items from "../items.js";
 import type * as orders from "../orders.js";
+import type * as passwordUtils from "../passwordUtils.js";
 import type * as rateLimit from "../rateLimit.js";
 import type * as shops from "../shops.js";
 import type * as users from "../users.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   items: typeof items;
   orders: typeof orders;
+  passwordUtils: typeof passwordUtils;
   rateLimit: typeof rateLimit;
   shops: typeof shops;
   users: typeof users;

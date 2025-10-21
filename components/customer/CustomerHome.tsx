@@ -806,9 +806,20 @@ useEffect(() => {
   });
 
   // Query to check if user has any orders (to show/hide "View Orders" button)
-  const userOrders = useQuery(api.orders.getCustomerOrders, { 
+  const userOrdersResult = useQuery(api.orders.getCustomerOrders, { 
     customerId: user._id 
   });
+
+  // Extract orders array from pagination result
+  const userOrders = useMemo(() => {
+    if (!userOrdersResult) return [];
+    // Check if it's a pagination result with 'page' property
+    if (typeof userOrdersResult === 'object' && 'page' in userOrdersResult) {
+      return (userOrdersResult as { page: any[] }).page;
+    }
+    // Otherwise, assume it's already an array
+    return Array.isArray(userOrdersResult) ? userOrdersResult : [];
+  }, [userOrdersResult]);
 
   // Check if user has any orders to determine if "View Orders" button should be shown
   const hasOrders = useMemo(() => {

@@ -57,10 +57,22 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
 }) => {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   
-  const allOrders = useQuery(
+  const allOrdersResult = useQuery(
     api.orders.getShopOrders, 
     visible && shopId ? { shopId } : "skip"
   );
+
+  // Extract orders array from pagination result
+  const allOrders = React.useMemo(() => {
+    if (!allOrdersResult) return [];
+    if (typeof allOrdersResult === 'object' && 'page' in allOrdersResult) {
+      return (allOrdersResult as { page: any[] }).page;
+    }
+    if (typeof allOrdersResult === 'object' && 'results' in allOrdersResult) {
+      return (allOrdersResult as { results: any[] }).results;
+    }
+    return Array.isArray(allOrdersResult) ? allOrdersResult : [];
+  }, [allOrdersResult]);
   
   // Show only active orders (not completed, rejected, or cancelled)
   const orders = allOrders?.filter((order: any) => {
@@ -165,7 +177,7 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
               </Text>
             </View>
           ) : (
-            orders.map((order) => (
+            orders.map((order: any) => (
               <TouchableOpacity 
                 key={order._id} 
                 style={styles.orderCard}
@@ -229,7 +241,7 @@ export const ShopOrdersModal: React.FC<ShopOrdersModalProps> = ({
         <OrderDetailsModal
           visible={!!selectedOrder}
           onClose={() => setSelectedOrder(null)}
-          order={selectedOrder ? allOrders?.find(o => o._id === selectedOrder._id) || selectedOrder : null}
+          order={selectedOrder ? allOrders?.find((o: any) => o._id === selectedOrder._id) || selectedOrder : null}
           onUpdateStatus={handleStatusUpdate}
           openDirections={openDirections}
           isHistoryMode={false}

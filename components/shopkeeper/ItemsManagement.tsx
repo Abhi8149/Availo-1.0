@@ -35,9 +35,21 @@ export default function ItemsManagement({ shopId, shopName, shopOwnerId, shopLoc
   const [showAdvertisementHistory, setShowAdvertisementHistory] = useState(false);
   const [editingAdvertisement, setEditingAdvertisement] = useState(null);
 
-  const items = useQuery(api.items.getItemsByShop, { shopId });
+  const itemsResult = useQuery(api.items.getItemsByShop, { shopId });
   const deleteItem = useMutation(api.items.deleteItem);
   const updateItem = useMutation(api.items.updateItem);
+
+  // Extract items array from pagination result
+  const items = React.useMemo(() => {
+    if (!itemsResult) return [];
+    if (typeof itemsResult === 'object' && 'page' in itemsResult) {
+      return (itemsResult as { page: any[] }).page;
+    }
+    if (typeof itemsResult === 'object' && 'results' in itemsResult) {
+      return (itemsResult as { results: any[] }).results;
+    }
+    return Array.isArray(itemsResult) ? itemsResult : [];
+  }, [itemsResult]);
 
   const handleDeleteItem = (itemId: Id<"items">, itemName: string) => {
     Alert.alert(

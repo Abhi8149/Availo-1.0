@@ -79,6 +79,7 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
     if (!pendingUserId) return false;
     try {
       const result = await verifyCode({ userId: pendingUserId, code });
+      
       if (result.success) {
         // Only now create the user in the database
         const userId = await createUser({

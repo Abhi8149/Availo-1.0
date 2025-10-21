@@ -1,6 +1,7 @@
 
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { hashPassword, verifyPassword, isPasswordHashed } from "./passwordUtils";
 
 export const updateUserProfile = mutation({
   args: {
@@ -24,7 +25,16 @@ export const updateUserProfile = mutation({
     if (args.email !== undefined) updates.email = args.email;
     if (args.phone !== undefined) updates.phone = args.phone;
     if (args.photoUri !== undefined) updates.photoUri = args.photoUri;
-    if (args.password !== undefined) updates.password = args.password;
+    
+    // Hash password if provided and not already hashed
+    if (args.password !== undefined) {
+      if (isPasswordHashed(args.password)) {
+        updates.password = args.password; // Already hashed
+      } else {
+        updates.password = hashPassword(args.password); // Hash plain text (synchronous)
+      }
+    }
+    
     if (args.location !== undefined) {
       updates.location = {
         ...args.location,
@@ -55,10 +65,13 @@ export const createUser = mutation({
       throw new Error("User with this email already exists");
     }
 
+    // Hash the password before storing (synchronous)
+    const hashedPassword = hashPassword(args.password);
+
     const userId = await ctx.db.insert("users", {
       name: args.name,
       email: args.email,
-      password: args.password, // Store password (in production, this should be hashed)
+      password: hashedPassword, // Store hashed password
       role: args.role,
       createdAt: Date.now(),
     });
@@ -98,8 +111,10 @@ export const authenticateUser = mutation({
       throw new Error("This account was created before password authentication was implemented. Please use the forgot password feature to set up a password.");
     }
 
-    // Check password
-    if (user.password !== args.password) {
+    // Verify password using bcrypt (synchronous)
+    const isPasswordValid = verifyPassword(args.password, user.password);
+    
+    if (!isPasswordValid) {
       throw new Error("Invalid email or password");
     }
 
@@ -129,8 +144,14 @@ export const deleteUserAccount = mutation({
       throw new Error("User not found");
     }
 
-    // Verify password
-    if (!user.password || user.password !== args.password) {
+    // Verify password using bcrypt (synchronous)
+    if (!user.password) {
+      throw new Error("Password not set for this account");
+    }
+    
+    const isPasswordValid = verifyPassword(args.password, user.password);
+    
+    if (!isPasswordValid) {
       throw new Error("Incorrect password");
     }
 

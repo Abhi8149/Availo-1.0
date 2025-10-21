@@ -32,10 +32,21 @@ export default function CustomerOrdersModal({
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   
   // Query to get customer orders
-  const orders = useQuery(
+  const ordersResult = useQuery(
     api.orders.getCustomerOrders,
     visible && userId ? { customerId: userId } : "skip"
   );
+
+  // Extract orders array from pagination result or use as-is if it's already an array
+  const orders = React.useMemo(() => {
+    if (!ordersResult) return [];
+    // Check if it's a pagination result with 'page' property
+    if (typeof ordersResult === 'object' && 'page' in ordersResult) {
+      return (ordersResult as { page: any[] }).page;
+    }
+    // Otherwise, assume it's already an array
+    return Array.isArray(ordersResult) ? ordersResult : [];
+  }, [ordersResult]);
 
   // Query to get shop details for contact info
   const shops = useQuery(
@@ -277,8 +288,8 @@ export default function CustomerOrdersModal({
   };
 
   // Filter out cancelled orders and sort by date
-  const activeOrders = orders?.filter(order => order.status !== "cancelled") || [];
-  const sortedOrders = activeOrders.sort((a, b) => b.createdAt - a.createdAt);
+  const activeOrders = orders?.filter((order: any) => order.status !== "cancelled") || [];
+  const sortedOrders = activeOrders.sort((a: any, b: any) => b.createdAt - a.createdAt);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
