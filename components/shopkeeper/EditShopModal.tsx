@@ -21,6 +21,7 @@ import AddressInput from "../common/AddressInput";
 import AdvertisementModal from "./AdvertisementModal";
 import AdvertisementHistoryModal from "./AdvertisementHistoryModal";
 import { FlexibleImagePicker } from "../common/FlexibleImagePicker";
+import { ImageOptimizer } from "../../utils/imageOptimizer";
 
 // Component to display individual images with proper URL fetching
 const ImageDisplay = ({ 
@@ -377,10 +378,16 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
 
   const uploadImage = async (uri: string): Promise<Id<"_storage"> | null> => {
     try {
+      // Optimize image before uploading
+      console.log('Optimizing shop image...');
+      const optimizedUri = await ImageOptimizer.optimizeShopImage(uri);
+      
       const uploadUrl = await generateUploadUrl();
       
-      const response = await fetch(uri);
+      const response = await fetch(optimizedUri);
       const blob = await response.blob();
+      
+      console.log(`Uploading optimized shop image (${(blob.size / 1024).toFixed(2)} KB)...`);
       
       const uploadResponse = await fetch(uploadUrl, {
         method: "POST",
@@ -393,6 +400,7 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
       }
 
       const { storageId } = await uploadResponse.json();
+      console.log('Shop image uploaded successfully');
       return storageId;
     } catch (error) {
       console.error("Image upload error:", error);

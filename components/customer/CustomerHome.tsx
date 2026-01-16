@@ -88,34 +88,12 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
   // Approx total header height (compact + search mode + search bar + filters + results)
   const TOTAL_HEADER_HEIGHT = 260;
   // Small extra gap between the bottom of the header (status/filters) and the first shop
-  const HEADER_TO_SHOPS_GAP = 24;
+  const HEADER_TO_SHOPS_GAP = 32; // Increased from 24 to 32 for better spacing in production
   // Respect device safe area so header doesn't overlap status bar
   const insets = useSafeAreaInsets();
 
   // Load cart from AsyncStorage on mount
   // In CustomerHome.tsx, add this useEffect after your existing useEffects
-useEffect(() => {
-  // Check for pending advertisement from deep link
-  const checkPendingAdvertisement = () => {
-    if (global.pendingAdvertisementId) {
-      const adId = global.pendingAdvertisementId;
-      console.log('🎯 Found pending advertisement:', adId);
-      
-      // Clear the pending ID
-      global.pendingAdvertisementId = null;
-      
-      // Open notifications modal with specific advertisement
-      navigateToNotification('advertisement', adId);
-      setNotificationsVisible(true);
-    }
-  };
-
-  // Check immediately and also set an interval to check periodically
-  checkPendingAdvertisement();
-  const interval = setInterval(checkPendingAdvertisement, 500);
-
-  return () => clearInterval(interval);
-}, [navigateToNotification]);
   useEffect(() => {
     (async () => {
       try {
@@ -982,7 +960,7 @@ useEffect(() => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header wrapper (absolute) so list scrolls under it */}
-  <View pointerEvents={headerTouchable ? 'auto' : 'box-none'} style={{ position: 'absolute', top: insets.top, left: 0, right: 0, zIndex: 20 }}>
+  <View pointerEvents={headerTouchable ? 'auto' : 'box-none'} style={{ position: 'absolute', top: insets.top, left: 0, right: 0, zIndex: 100, elevation: 100 }}>
           {/* Compact Modern Header */}
           <View style={styles.compactHeader}>
         <View style={styles.headerContent}>
@@ -1656,8 +1634,8 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 10,
-    zIndex: 10,
+    elevation: 50,
+    zIndex: 50,
     position: 'relative',
   },
   headerContent: {
@@ -2165,6 +2143,3 @@ const styles = StyleSheet.create({
   },
 });
 
-function navigateToNotification(arg0: string, adId: string) {
-  throw new Error("Function not implemented.");
-}

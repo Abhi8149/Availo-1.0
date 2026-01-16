@@ -10,6 +10,7 @@ import CustomerHome from "../components/customer/CustomerHome";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
+import { useUser, useAuth } from "@clerk/clerk-expo";
 
 export default function Index() {
   const [currentUser, setCurrentUser] = useState<Id<"users"> | null>(null);
@@ -17,45 +18,127 @@ export default function Index() {
   const [currentRole, setCurrentRole] = useState<"shopkeeper" | "customer" | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
+  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const { signOut } = useAuth();
   const user = useQuery(api.users.getUser, currentUser ? { userId: currentUser } : "skip");
   const getUserByEmail = useMutation(api.users.getUserByEmail);
+  const getUserByClerkId = useMutation(api.users.getUserByClerkId);
 
   /**
-   * Simple app initialization - no external auth dependencies
-   * This ensures production stability and faster app startup
+   * Check for both local auth and Clerk sessions
+   * Clerk sessions take priority for Google OAuth users
    */
   useEffect(() => {
-    const loadSavedAuth = async () => {
+    const loadAuth = async () => {
       try {
-        const authData = await getAuthData();
-        if (authData) {
-          setCurrentUser(authData.userId as Id<"users">);
-          setCurrentRole(authData.role);
+        // Wait for Clerk to load
+        if (!isClerkLoaded) {
+          return;
         }
+
+        // Check if user is signed in with Clerk (Google OAuth)
+        if (clerkUser) {
+          console.log('🔍 Clerk user found, syncing with database...');
+          console.log('📧 Clerk email:', clerkUser.primaryEmailAddress?.emailAddress);
+          
+          // Get user from database by Clerk ID
+          const dbUser = await getUserByClerkId({ clerkUserId: clerkUser.id });
+          
+          if (dbUser) {
+            console.log('✅ Database user found:', dbUser._id);
+            setCurrentUser(dbUser._id);
+            
+            // Check if there's a saved role preference in local storage
+            const authData = await getAuthData();
+            if (authData && authData.userId === dbUser._id.toString()) {
+              // Use saved role preference (view mode)
+              console.log('📱 Using saved role preference:', authData.role);
+              setCurrentRole(authData.role);
+            } else {
+              // No saved preference, use database role as default
+              console.log('📱 No saved preference, using database role:', dbUser.role);
+              setCurrentRole(dbUser.role);
+              
+              // Save to local storage for persistence
+              await saveAuthData({
+                userId: dbUser._id.toString(),
+                role: dbUser.role
+              });
+            }
+          } else {
+            console.log('⚠️ Clerk user not in database - staying on login to trigger role selection');
+            // Don't set current user - stay on login screen
+            // The LoginScreen's syncGoogleUserToDatabase will handle showing role modal
+            setCurrentUser(null);
+            setCurrentRole(null);
+          }
+        } else {
+          // No Clerk session, check local storage
+          const authData = await getAuthData();
+          if (authData) {
+            setCurrentUser(authData.userId as Id<"users">);
+            setCurrentRole(authData.role);
+            console.log('📱 Loaded from storage - User:', authData.userId, 'Role:', authData.role);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error loading auth:', error);
       } finally {
         setIsCheckingAuth(false);
       }
     };
     
-    loadSavedAuth();
-  }, []);
+    loadAuth();
+  }, [isClerkLoaded, clerkUser]);
 
   const handleAuthSuccess = async (userId: Id<"users">) => {
     console.log('✅ Auth success for user:', userId);
     setCurrentUser(userId);
     
-    // Save auth data to persist login
-    await saveAuthData({
-      userId: userId.toString(),
-      role: currentRole
-    });
+    // Load the role from local storage (it should have been saved during auth)
+    const authData = await getAuthData();
+    if (authData && authData.userId === userId.toString()) {
+      console.log('📱 Setting role from auth data:', authData.role);
+      setCurrentRole(authData.role);
+    }
   };
+
+  // Effect to save auth data when user data is loaded (only set role if not already set)
+  useEffect(() => {
+    if (user && currentUser && !currentRole) {
+      // Check local storage first - it has priority during auth flow
+      getAuthData().then(authData => {
+        if (authData && authData.userId === currentUser.toString()) {
+          // Use role from local storage if available (more recent than DB during auth)
+          console.log('📱 Using role from storage during user load:', authData.role);
+          setCurrentRole(authData.role);
+        } else {
+          // Fallback to database role if no storage data
+          console.log('📱 Using role from database:', user.role);
+          setCurrentRole(user.role);
+          
+          // Save auth data to persist login
+          saveAuthData({
+            userId: currentUser.toString(),
+            role: user.role
+          }).catch(console.error);
+        }
+      });
+    }
+  }, [user, currentUser]);
 
   const handleLogout = async () => {
     console.log('🚪 Logging out user...');
     try {
       // Clear persisted auth data
       await clearAuthData();
+      
+      // Sign out from Clerk (for Google OAuth users)
+      if (signOut) {
+        console.log('🔐 Signing out from Clerk...');
+        await signOut();
+        console.log('✅ Clerk sign out completed');
+      }
       
       // Clear local state
       setCurrentUser(null);
@@ -71,22 +154,26 @@ export default function Index() {
   };
 
   const handleSwitchToCustomer = async () => {
+    console.log('🔄 Switching to customer mode...');
     setCurrentRole("customer");
     if (currentUser) {
       await saveAuthData({
         userId: currentUser.toString(),
         role: "customer"
       });
+      console.log('✅ Switched to customer mode');
     }
   };
 
   const handleSwitchToShopkeeper = async () => {
+    console.log('🔄 Switching to shopkeeper mode...');
     setCurrentRole("shopkeeper");
     if (currentUser) {
       await saveAuthData({
         userId: currentUser.toString(),
         role: "shopkeeper"
       });
+      console.log('✅ Switched to shopkeeper mode');
     }
   };
 
@@ -114,8 +201,10 @@ export default function Index() {
   }
 
   if (currentUser && user) {
-    // Determine which role to show
+    // Determine which role to show (currentRole overrides database role)
     const activeRole = currentRole || user.role;
+    
+    console.log('📊 Active role:', activeRole, '| Database role:', user.role, '| Current role state:', currentRole);
     
     if (activeRole === "shopkeeper") {
       return (
@@ -126,6 +215,7 @@ export default function Index() {
         />
       );
     } else {
+      // Only allow switching to shopkeeper if database role is shopkeeper
       return (
         <CustomerHome 
           user={user} 

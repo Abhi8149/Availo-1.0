@@ -189,7 +189,7 @@ export default function RegisterScreen({ onAuthSuccess, onSwitchToLogin }: Regis
         <View style={styles.content}>
           <View style={styles.header}>
             <Ionicons name="storefront" size={64} color="#2563EB" />
-            <Text style={styles.title}>Join ShopStatus</Text>
+            <Text style={styles.title}>Join Availo</Text>
             <Text style={styles.subtitle}>Create your account</Text>
           </View>
           <View style={styles.form}>

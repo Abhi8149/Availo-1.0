@@ -20,6 +20,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import BarcodeScanner from "../common/BarcodeScanner";
 import { ProductApiService, ProductData } from "../../services/productApiService";
 import { FlexibleImagePicker } from "../common/FlexibleImagePicker";
+import { ImageOptimizer } from "../../utils/imageOptimizer";
 
 interface AddItemModalProps {
   visible: boolean;
@@ -207,10 +208,16 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
 
   const uploadImage = async (uri: string): Promise<Id<"_storage"> | null> => {
     try {
+      // Optimize image before uploading
+      console.log('Optimizing item image...');
+      const optimizedUri = await ImageOptimizer.optimizeItemImage(uri);
+      
       const uploadUrl = await generateUploadUrl();
       
-      const response = await fetch(uri);
+      const response = await fetch(optimizedUri);
       const blob = await response.blob();
+      
+      console.log(`Uploading optimized image (${(blob.size / 1024).toFixed(2)} KB)...`);
       
       const uploadResponse = await fetch(uploadUrl, {
         method: "POST",
@@ -223,6 +230,7 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
       }
 
       const { storageId } = await uploadResponse.json();
+      console.log('Image uploaded successfully');
       return storageId;
     } catch (error) {
       console.error("Image upload error:", error);

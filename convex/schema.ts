@@ -7,7 +7,8 @@ export default defineSchema({
     email: v.string(),
     phone: v.optional(v.string()),
     photoUri: v.optional(v.string()),
-    password: v.optional(v.string()), // Optional for backward compatibility
+    password: v.optional(v.string()), // Optional for OAuth users
+    clerkUserId: v.optional(v.string()), // Clerk user ID for OAuth
     role: v.union(v.literal("shopkeeper"), v.literal("customer")),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),

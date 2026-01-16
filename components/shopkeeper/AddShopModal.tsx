@@ -18,6 +18,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import AddressInput from "../common/AddressInput";
 import { FlexibleImagePicker } from "../common/FlexibleImagePicker";
+import { ImageOptimizer } from "../../utils/imageOptimizer";
 
 interface AddShopModalProps {
   visible: boolean;
@@ -154,10 +155,16 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
 
   const uploadImage = async (uri: string): Promise<Id<"_storage"> | null> => {
     try {
+      // Optimize image before uploading
+      console.log('Optimizing shop image...');
+      const optimizedUri = await ImageOptimizer.optimizeShopImage(uri);
+      
       const uploadUrl = await generateUploadUrl();
       
-      const response = await fetch(uri);
+      const response = await fetch(optimizedUri);
       const blob = await response.blob();
+      
+      console.log(`Uploading optimized shop image (${(blob.size / 1024).toFixed(2)} KB)...`);
       
       const uploadResponse = await fetch(uploadUrl, {
         method: "POST",
@@ -170,6 +177,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
       }
 
       const { storageId } = await uploadResponse.json();
+      console.log('Shop image uploaded successfully');
       return storageId;
     } catch (error) {
       console.error("Image upload error:", error);
@@ -207,14 +215,17 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
     try {
       let shopImageIds: Id<"_storage">[] = [];
 
-      // Upload all selected images
+      // Upload all selected images with progress
       if (imageUris.length > 0) {
-        for (const uri of imageUris) {
-          const imageId = await uploadImage(uri);
+        console.log(`Starting upload of ${imageUris.length} shop images...`);
+        for (let i = 0; i < imageUris.length; i++) {
+          console.log(`Uploading image ${i + 1} of ${imageUris.length}...`);
+          const imageId = await uploadImage(imageUris[i]);
           if (imageId) {
             shopImageIds.push(imageId);
           }
         }
+        console.log(`Successfully uploaded ${shopImageIds.length} images`);
       }
 
       // For backward compatibility, set the first image as shopImageId

@@ -80,6 +80,16 @@ export const createUser = mutation({
   },
 });
 
+export const getUserByClerkId = mutation({
+  args: { clerkUserId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkUserId"), args.clerkUserId))
+      .unique();
+  },
+});
+
 export const getUserByEmail = mutation({
   args: { email: v.string() },
   handler: async (ctx, args) => {
@@ -383,3 +393,83 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   console.log("Distance calculated by calculateDistance is",distance);
   return distance;
 }
+
+// Google OAuth - Check if user exists (doesn't create user)
+export const checkGoogleOAuthUser = mutation({
+  args: {
+    clerkUserId: v.string(),
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Check if user exists by Clerk ID
+    const existingUserByClerkId = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkUserId"), args.clerkUserId))
+      .unique();
+
+    if (existingUserByClerkId) {
+      return { 
+        exists: true, 
+        userId: existingUserByClerkId._id, 
+        user: existingUserByClerkId 
+      };
+    }
+
+    // Check if user exists by email (migration case)
+    const existingUserByEmail = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .unique();
+
+    if (existingUserByEmail) {
+      // Link Clerk ID to existing email user
+      await ctx.db.patch(existingUserByEmail._id, {
+        clerkUserId: args.clerkUserId,
+      });
+      return { 
+        exists: true, 
+        userId: existingUserByEmail._id, 
+        user: existingUserByEmail 
+      };
+    }
+
+    // User doesn't exist
+    return { exists: false };
+  },
+});
+
+// Google OAuth - Create new user with role
+export const createGoogleOAuthUser = mutation({
+  args: {
+    clerkUserId: v.string(),
+    email: v.string(),
+    name: v.string(),
+    photoUrl: v.optional(v.string()),
+    role: v.union(v.literal("customer"), v.literal("shopkeeper")),
+  },
+  handler: async (ctx, args) => {
+    // Double-check user doesn't exist
+    const existingUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkUserId"), args.clerkUserId))
+      .unique();
+
+    if (existingUser) {
+      throw new Error("User already exists");
+    }
+
+    // Create new user with selected role
+    const userId = await ctx.db.insert("users", {
+      clerkUserId: args.clerkUserId,
+      name: args.name,
+      email: args.email,
+      role: args.role,
+      photoUri: args.photoUrl,
+      createdAt: Date.now(),
+      // No password for OAuth users
+    });
+
+    return userId;
+  },
+});
+

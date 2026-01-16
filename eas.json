@@ -18,10 +18,11 @@
     "production": {
       "env": {
         "EXPO_PUBLIC_CONVEX_URL": "https://helpful-ermine-601.convex.cloud",
-        "EXPO_PUBLIC_LOCATIONIQ_API_KEY":"pk.2e5d70a914f544ff9b993af9ac29d478"
+        "EXPO_PUBLIC_LOCATIONIQ_API_KEY":"pk.2e5d70a914f544ff9b993af9ac29d478",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY":"pk_live_Y2xlcmsuc2hvcHN0YXR1cy5saXZlJA"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "apk"
       },
       "channel": "production"
     }

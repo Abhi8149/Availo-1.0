@@ -266,7 +266,7 @@ export class FlexibleImagePicker {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false, // Always disable editing for multiple selection initially
-        quality: options.quality || 0.8,
+        quality: options.quality || 0.6, // Reduced from 0.8 to 0.6 for faster uploads
         allowsMultipleSelection: true,
         selectionLimit: options.selectionLimit || 10,
       });
@@ -309,7 +309,7 @@ export class FlexibleImagePicker {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: options.allowsEditing || false,
         aspect: options.aspect,
-        quality: options.quality || 0.8,
+        quality: options.quality || 0.6, // Reduced from 0.8 to 0.6 for faster uploads
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -333,7 +333,7 @@ export class FlexibleImagePicker {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: options.allowsEditing || false,
         aspect: options.aspect,
-        quality: options.quality || 0.8,
+        quality: options.quality || 0.6, // Reduced from 0.8 to 0.6 for faster uploads
         allowsMultipleSelection: options.allowsMultipleSelection || false,
       });
 
