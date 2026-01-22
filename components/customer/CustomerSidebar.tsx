@@ -13,7 +13,9 @@ import {
   FlatList,
   Image,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import ZoomableImage from "../common/ZoomableImage";
 import EditProfileScreen from "../common/EditProfileScreen";
 import CustomerOrdersModal from "./CustomerOrdersModal";
 import { useQuery } from "convex/react";
@@ -376,7 +378,7 @@ export default function CustomerSidebar({
       >
         <View style={styles.overlay}>
           <TouchableOpacity style={styles.overlayTouchable} onPress={onClose} />
-          <View style={styles.sidebarContainer}>
+          <SafeAreaView style={styles.sidebarContainer} edges={['top', 'bottom']}>
             <View style={styles.sidebarHeader}>
               <TouchableOpacity onPress={() => setProfilePhotoModalVisible(true)} style={styles.userInfo} activeOpacity={0.7}>
                 <View style={styles.avatarContainer}>
@@ -406,12 +408,15 @@ export default function CustomerSidebar({
                 </TouchableOpacity>
                 <View style={styles.profilePhotoModalImageContainer}>
                   {user.photoUri ? (
-                    <Image source={{ uri: user.photoUri }} style={styles.profilePhotoModalImage} resizeMode="contain" />
+                    <ZoomableImage uri={user.photoUri} style={styles.profilePhotoModalImage} resizeMode="contain" />
                   ) : (
                     <View style={styles.profilePhotoLargePlaceholder}>
                       <Text style={styles.avatarTextLarge}>{user.name.charAt(0).toUpperCase()}</Text>
                     </View>
                   )}
+                </View>
+                <View style={styles.zoomHint}>
+                  <Text style={styles.zoomHintText}>Double tap to zoom • Tap X to close</Text>
                 </View>
               </View>
             </Modal>
@@ -619,7 +624,7 @@ export default function CustomerSidebar({
                 </TouchableOpacity>
               )}
             </ScrollView>
-          </View>
+          </SafeAreaView>
         </View>
       </Modal>
 
@@ -1000,6 +1005,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  zoomHint: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  zoomHintText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '500',
   },
   overlay: {
     flex: 1,

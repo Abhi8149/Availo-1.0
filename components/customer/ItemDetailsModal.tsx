@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Id } from "../../convex/_generated/dataModel";
 import ItemImage from "../common/ItemImage";
+import ZoomableItemImage from "../common/ZoomableItemImage";
 // import ShopDetailsModal from "./ShopDetailsModal";
 
 interface Item {
@@ -22,6 +23,7 @@ interface Item {
   priceDescription?: string;
   category?: string;
   imageId?: Id<"_storage">;
+  imageIds?: Id<"_storage">[];
   inStock: boolean;
   createdAt: number;
   updatedAt: number;
@@ -54,6 +56,8 @@ export default function ItemDetailsModal({
   isInCart = false
 }: ItemDetailsModalProps) {
   const [imageFullscreen, setImageFullscreen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
   if (!item) return null;
@@ -95,6 +99,22 @@ export default function ItemDetailsModal({
       );
     }
   };
+
+  // Handle image scroll to update indicators
+  const handleImageScroll = (event: any) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(contentOffsetX / screenWidth);
+    setCurrentImageIndex(index);
+  };
+
+  // Get all item images
+  const allImages: Id<"_storage">[] = [];
+  if (item?.imageId) {
+    allImages.push(item.imageId);
+  }
+  if (item?.imageIds && item.imageIds.length > 0) {
+    allImages.push(...item.imageIds.filter(img => img !== item.imageId));
+  }
 
   const styles = StyleSheet.create({
     offerSection: {
@@ -368,6 +388,12 @@ export default function ItemDetailsModal({
       alignItems: "center",
       minHeight: screenHeight,
     },
+    fullscreenImageContainer: {
+      flex: 1,
+      width: "100%",
+      justifyContent: "center",
+      alignItems: "center",
+    },
     fullscreenImage: {
       width: screenWidth,
       height: screenHeight * 0.8,
@@ -437,48 +463,75 @@ export default function ItemDetailsModal({
       textAlign: "center",
       fontWeight: "500",
     },
+    imageScrollView: {
+      width: screenWidth,
+      height: 300,
+    },
+    imageScrollContainer: {
+      width: screenWidth,
+      height: 300,
+    },
+    imageIndicators: {
+      position: "absolute",
+      bottom: 20,
+      left: 0,
+      right: 0,
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 6,
+    },
+    indicatorDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: "#FFFFFF",
+    },
+    imageCounter: {
+      position: "absolute",
+      top: 16,
+      right: 16,
+      backgroundColor: "rgba(0, 0, 0, 0.6)",
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+    },
+    imageCounterText: {
+      color: "#FFFFFF",
+      fontSize: 12,
+      fontWeight: "600",
+    },
   });
 
   // Enhanced Fullscreen Image Modal Component
   const ImageFullscreenModal = () => (
     <Modal
-      visible={imageFullscreen}
+      visible={selectedImageIndex !== null}
       transparent={true}
       animationType="fade"
-      onRequestClose={() => setImageFullscreen(false)}
+      onRequestClose={() => setSelectedImageIndex(null)}
     >
       <View style={styles.fullscreenContainer}>
         <TouchableOpacity 
           style={styles.fullscreenCloseButton}
-          onPress={() => setImageFullscreen(false)}
+          onPress={() => setSelectedImageIndex(null)}
         >
           <Ionicons name="close" size={30} color="#FFFFFF" />
         </TouchableOpacity>
         
-        {item.imageId && (
-          <ScrollView
-            style={styles.fullscreenScrollView}
-            contentContainerStyle={styles.fullscreenScrollContent}
-            maximumZoomScale={5}
-            minimumZoomScale={1}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-            bounces={false}
-          >
-            <View style={styles.fullscreenImage}>
-              <ItemImage 
-                imageId={item.imageId} 
-                showOriginalSize={true}
-                contentFit="contain"
-              />
-            </View>
-          </ScrollView>
+        {selectedImageIndex !== null && allImages[selectedImageIndex] && (
+          <View style={styles.fullscreenImageContainer}>
+            <ZoomableItemImage 
+              imageId={allImages[selectedImageIndex]} 
+              style={styles.fullscreenImage}
+            />
+          </View>
         )}
         
         {/* Zoom Hint */}
         <View style={styles.fullscreenHint}>
           <Text style={styles.fullscreenHintText}>
-            {/* Pinch to zoom • Double tap to zoom • Tap outside to close */}
+            Double tap to zoom • Tap X to close
           </Text>
         </View>
       </View>
@@ -504,24 +557,69 @@ export default function ItemDetailsModal({
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Item Image */}
+            {/* Item Image Carousel */}
             <View style={styles.imageSection}>
-              {item.imageId ? (
-                <TouchableOpacity
-                  onPress={() => setImageFullscreen(true)}
-                  style={styles.imageContainer}
-                  activeOpacity={0.8}
-                >
-                  <ItemImage 
-                    imageId={item.imageId} 
-                    showOriginalSize={true}
-                    contentFit="contain"
-                  />
-                  <View style={styles.imageOverlay}>
-                    <Ionicons name="expand" size={20} color="#FFFFFF" />
-                    <Text style={styles.imageOverlayText}>Tap for full size</Text>
+              {allImages.length > 0 ? (
+                <View style={styles.imageContainer}>
+                  <ScrollView
+                    horizontal
+                    pagingEnabled={true}
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.imageScrollView}
+                    onScroll={handleImageScroll}
+                    scrollEventThrottle={16}
+                    snapToInterval={screenWidth}
+                    snapToAlignment="center"
+                    decelerationRate="fast"
+                  >
+                    {allImages.map((imageId, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        onPress={() => setSelectedImageIndex(index)}
+                        style={styles.imageScrollContainer}
+                        activeOpacity={0.8}
+                      >
+                        <ItemImage 
+                          imageId={imageId} 
+                          showOriginalSize={true}
+                          contentFit="contain"
+                        />
+                        <View style={styles.imageOverlay}>
+                          <Ionicons name="expand" size={20} color="#FFFFFF" />
+                          <Text style={styles.imageOverlayText}>Tap for full size</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  
+                  {/* Image Indicators */}
+                  {allImages.length > 1 && (
+                    <View style={styles.imageIndicators}>
+                      {allImages.map((_, index) => (
+                        <View
+                          key={index}
+                          style={[
+                            styles.indicatorDot,
+                            { 
+                              opacity: index === currentImageIndex ? 1 : 0.4,
+                              transform: [{ scale: index === currentImageIndex ? 1.2 : 1 }]
+                            }
+                          ]}
+                        />
+                      ))}
+                    </View>
+                  )}
+                  
+                  {/* Image Counter */}
+                  <View style={styles.imageCounter}>
+                    <Text style={styles.imageCounterText}>
+                      {allImages.length > 1 
+                        ? `${currentImageIndex + 1} of ${allImages.length}` 
+                        : `${allImages.length} photo${allImages.length > 1 ? 's' : ''}`
+                      }
+                    </Text>
                   </View>
-                </TouchableOpacity>
+                </View>
               ) : (
                 <View style={styles.placeholderImageContainer}>
                   <Ionicons name="image-outline" size={60} color="#9CA3AF" />

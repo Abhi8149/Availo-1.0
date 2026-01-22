@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Stack } from "expo-router";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
 import { OneSignalService } from "../services/oneSignalService";
 import { Linking } from 'react-native';
@@ -132,21 +133,23 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ErrorBoundary>
-      <ClerkProvider 
-        publishableKey={getClerkPublishableKey()} 
-        tokenCache={tokenCache}
-      >
-        {/* StatusBar always visible, matching notification modal */}
-        <StatusBar style="dark" backgroundColor="#FAFAFA" translucent={false} />
-        <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
-          <ConvexProvider client={convex}>
-            <ClerkLoaded>
-              <Stack screenOptions={{ headerShown: false }} />
-            </ClerkLoaded>
-          </ConvexProvider>
-        </View>
-      </ClerkProvider>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <ClerkProvider 
+          publishableKey={getClerkPublishableKey()} 
+          tokenCache={tokenCache}
+        >
+          {/* StatusBar always visible, matching notification modal */}
+          <StatusBar style="dark" backgroundColor="#FAFAFA" translucent={false} />
+          <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+            <ConvexProvider client={convex}>
+              <ClerkLoaded>
+                <Stack screenOptions={{ headerShown: false }} />
+              </ClerkLoaded>
+            </ConvexProvider>
+          </View>
+        </ClerkProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }

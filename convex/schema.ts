@@ -77,6 +77,7 @@ export default defineSchema({
     priceDescription: v.optional(v.string()),
     category: v.optional(v.string()),
     imageId: v.optional(v.id("_storage")),
+    imageIds: v.optional(v.array(v.id("_storage"))),
     inStock: v.boolean(),
     offer: v.optional(v.string()),
     barcode: v.optional(v.string()),

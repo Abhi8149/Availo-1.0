@@ -16,6 +16,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import AdvertisementImage from "../common/AdvertisementImage";
+import ZoomableAdvertisementImage from "../common/ZoomableAdvertisementImage";
 import { Video, ResizeMode } from 'expo-av';
 
 interface NotificationsModalProps {
@@ -381,29 +382,18 @@ export default function NotificationsModal({
         </TouchableOpacity>
         
         {fullscreenImageId && (
-          <ScrollView
-            style={styles.fullscreenScrollView}
-            contentContainerStyle={styles.fullscreenScrollContent}
-            maximumZoomScale={5}
-            minimumZoomScale={1}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-            bounces={false}
-          >
-            <View style={styles.fullscreenImage}>
-              <AdvertisementImage 
-                imageId={fullscreenImageId} 
-                showOriginalSize={true}
-                contentFit="contain"
-              />
-            </View>
-          </ScrollView>
+          <View style={styles.fullscreenImageContainer}>
+            <ZoomableAdvertisementImage 
+              imageId={fullscreenImageId} 
+              style={styles.fullscreenImage}
+            />
+          </View>
         )}
         
         {/* Zoom Hint */}
         <View style={styles.fullscreenHint}>
           <Text style={styles.fullscreenHintText}>
-            Pinch to zoom • Double tap to zoom • Tap outside to close
+            Double tap to zoom • Tap X to close
           </Text>
         </View>
       </View>
@@ -725,6 +715,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     minHeight: Dimensions.get('window').height,
+  },
+  fullscreenImageContainer: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   fullscreenImage: {
     width: Dimensions.get('window').width,

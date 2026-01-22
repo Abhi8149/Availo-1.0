@@ -62,6 +62,8 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
   const [inStock, setInStock] = useState(true);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageId, setImageId] = useState<Id<"_storage"> | null>(null);
+  const [imageUris, setImageUris] = useState<string[]>([]);
+  const [imageIds, setImageIds] = useState<Id<"_storage">[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSelectingSuggestion, setIsSelectingSuggestion] = useState(false);
@@ -86,6 +88,13 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
     api.items.getItemImage, 
     editingItem?.imageId ? { imageId: editingItem.imageId } : "skip"
   );
+  
+  const existingImageUrls = useQuery(
+    api.items.getItemImages,
+    editingItem?.imageIds && editingItem.imageIds.length > 0
+      ? { imageIds: editingItem.imageIds }
+      : "skip"
+  );
 
   const itemSuggestions = useQuery(api.items.searchItems, { searchTerm: itemName.length > 0 ? itemName : undefined }) || [];
 
@@ -99,7 +108,9 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
       setInStock(editingItem.inStock ?? true);
       setOffer(editingItem.offer || "");
       setImageId(editingItem.imageId || null);
+      setImageIds(editingItem.imageIds || []);
       setImageUri(null);
+      setImageUris([]);
       setPriceDescription((editingItem as ItemWithPriceDescription).priceDescription || "");
       setBarcode(editingItem.barcode || "");
       setBrand(editingItem.brand || "");
@@ -120,6 +131,8 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
     setOffer("");
     setImageUri(null);
     setImageId(null);
+    setImageUris([]);
+    setImageIds([]);
     setPriceDescription("");
     setBarcode("");
     setBrand("");
@@ -197,13 +210,20 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
       });
 
       if (image) {
-        setImageUri(image.uri);
-        setImageId(null);
+        setImageUris([...imageUris, image.uri]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert("Error", "Failed to select image");
     }
+  };
+
+  const removeImage = (index: number) => {
+    setImageUris(imageUris.filter((_, i) => i !== index));
+  };
+
+  const removeExistingImage = (index: number) => {
+    setImageIds(imageIds.filter((_, i) => i !== index));
   };
 
   const uploadImage = async (uri: string): Promise<Id<"_storage"> | null> => {
@@ -246,15 +266,15 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
 
     setLoading(true);
     try {
-      let finalImageId = imageId;
+      let finalImageIds = [...imageIds];
 
-      // Upload new image if selected
-      if (imageUri) {
-        finalImageId = await uploadImage(imageUri);
-        if (!finalImageId) {
-          Alert.alert("Error", "Failed to upload image");
-          setLoading(false);
-          return;
+      // Upload new images if selected
+      if (imageUris.length > 0) {
+        for (const uri of imageUris) {
+          const uploadedId = await uploadImage(uri);
+          if (uploadedId) {
+            finalImageIds.push(uploadedId);
+          }
         }
       }
 
@@ -270,8 +290,10 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
         brand: brand.trim() || undefined,
         inStock,
       };
-      if (finalImageId) {
-        itemData.imageId = finalImageId;
+      
+      // Add imageIds if there are any
+      if (finalImageIds.length > 0) {
+        itemData.imageIds = finalImageIds;
       }
 
       if (editingItem) {
@@ -346,23 +368,62 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
           <View style={styles.form}>
             {/* Image Section */}
             <View style={styles.imageSection}>
-              <Text style={styles.label}>Item Photo</Text>
-              <TouchableOpacity style={styles.imageContainer} onPress={showImagePicker}>
-                {displayImage ? (
-                  <Image
-                    source={{ uri: displayImage }}
-                    style={styles.itemImage}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Ionicons name="camera" size={32} color="#9CA3AF" />
-                    <Text style={styles.imagePlaceholderText}>Add Photo</Text>
-                  </View>
-                )}
-                <View style={styles.imageOverlay}>
-                  <Ionicons name="camera" size={20} color="#FFFFFF" />
-                </View>
+              <View style={styles.imageSectionHeader}>
+                <Text style={styles.label}>Item Photos</Text>
+                <Text style={styles.imageCount}>
+                  {imageUris.length + imageIds.length} photo{imageUris.length + imageIds.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
+              
+              {/* Display existing images from server */}
+              {existingImageUrls && existingImageUrls.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageList}>
+                  {existingImageUrls.map((url, index) => (
+                    <View key={`existing-${index}`} style={styles.imageItemContainer}>
+                      <Image
+                        source={{ uri: url }}
+                        style={styles.itemImageThumb}
+                        contentFit="cover"
+                      />
+                      <TouchableOpacity
+                        style={styles.removeImageButton}
+                        onPress={() => removeExistingImage(index)}
+                      >
+                        <Ionicons name="close-circle" size={24} color="#DC2626" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+              
+              {/* Display newly selected images */}
+              {imageUris.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageList}>
+                  {imageUris.map((uri, index) => (
+                    <View key={`new-${index}`} style={styles.imageItemContainer}>
+                      <Image
+                        source={{ uri }}
+                        style={styles.itemImageThumb}
+                        contentFit="cover"
+                      />
+                      <TouchableOpacity
+                        style={styles.removeImageButton}
+                        onPress={() => removeImage(index)}
+                      >
+                        <Ionicons name="close-circle" size={24} color="#DC2626" />
+                      </TouchableOpacity>
+                      <View style={styles.newImageBadge}>
+                        <Text style={styles.newImageText}>New</Text>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+              
+              {/* Add Photo Button */}
+              <TouchableOpacity style={styles.addPhotoButton} onPress={showImagePicker}>
+                <Ionicons name="add-circle-outline" size={32} color="#2563EB" />
+                <Text style={styles.addPhotoText}>Add Photo</Text>
               </TouchableOpacity>
             </View>
 
@@ -661,8 +722,70 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   imageSection: {
-    alignItems: "center",
     gap: 12,
+  },
+  imageSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  imageCount: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  imageList: {
+    flexDirection: 'row',
+  },
+  imageItemContainer: {
+    width: 100,
+    height: 100,
+    marginRight: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  itemImageThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 12,
+  },
+  newImageBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  newImageText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  addPhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#2563EB',
+    borderStyle: 'dashed',
+    gap: 8,
+  },
+  addPhotoText: {
+    fontSize: 16,
+    color: '#2563EB',
+    fontWeight: '600',
   },
   imageContainer: {
     width: 120,

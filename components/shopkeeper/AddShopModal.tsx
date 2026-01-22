@@ -142,16 +142,6 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
     }
   };
 
-  const convertTo24Hour = (hours: string, period: string): number => {
-    let hour = parseInt(hours);
-    if (isNaN(hour) || hour < 1 || hour > 12) return 0;
-    
-    if (period === "AM") {
-      return hour === 12 ? 0 : hour;
-    } else {
-      return hour === 12 ? 12 : hour + 12;
-    }
-  };
 
   const uploadImage = async (uri: string): Promise<Id<"_storage"> | null> => {
     try {
@@ -571,39 +561,6 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
                   setLongitude(lng);
                 }}
               />
-            </View>
-
-            <View style={styles.coordinatesContainer}>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Latitude *</Text>
-                <TextInput
-                  style={[styles.input, styles.coordinateInput, styles.readOnlyInput]}
-                  value={latitude}
-                  placeholder="Auto-filled"
-                  keyboardType="numeric"
-                  editable={false}
-                  placeholderTextColor="#888"
-                />
-              </View>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Longitude *</Text>
-                <TextInput
-                  style={[styles.input, styles.coordinateInput, styles.readOnlyInput]}
-                  value={longitude}
-                  placeholder="Auto-filled"
-                  keyboardType="numeric"
-                  editable={false}
-                  placeholderTextColor="#888"
-                />
-              </View>
-            </View>
-
-            <View style={styles.coordinatesHint}>
-              <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
-              <Text style={styles.hintText}>
-                Coordinates will be auto-filled when you select an address from the search results.
-                You can also manually enter them if needed.
-              </Text>
             </View>
 
             <View style={styles.statusContainer}>

@@ -22,6 +22,7 @@ import { useMutation, useQuery, useAction } from "convex/react";
 import { useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import ZoomableImage from "../common/ZoomableImage";
 
 interface AdvertisementModalProps {
   visible: boolean;
@@ -935,22 +936,15 @@ export default function AdvertisementModal({
             >
               <Ionicons name="close" size={30} color="#FFFFFF" />
             </TouchableOpacity>
-            <ScrollView
-              style={styles.fullscreenScrollView}
-              contentContainerStyle={styles.fullscreenScrollContent}
-              maximumZoomScale={3}
-              minimumZoomScale={1}
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-            >
-              <Image 
-                source={{ uri: fullscreenImage }} 
+            <View style={styles.fullscreenImageContainer}>
+              <ZoomableImage
+                uri={fullscreenImage}
                 style={styles.fullscreenImage}
-                contentFit="contain"
+                resizeMode="contain"
               />
-            </ScrollView>
+            </View>
             <View style={styles.fullscreenHint}>
-              <Text style={styles.fullscreenHintText}>Pinch to zoom • Tap to close</Text>
+              <Text style={styles.fullscreenHintText}>Double tap to zoom • Tap X to close</Text>
             </View>
           </View>
         </Modal>
@@ -1227,6 +1221,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     minHeight: Dimensions.get('window').height,
+  },
+  fullscreenImageContainer: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   fullscreenImage: {
     width: Dimensions.get('window').width,

@@ -19,6 +19,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import ItemImage from "../common/ItemImage";
 import ShopImage from "../common/ShopImage";
+import ZoomableShopImage from "../common/ZoomableShopImage";
 import { DirectionsService } from "../../services/directionsService";
 import ItemDetailsModal from "./ItemDetailsModal";
 import ShopCartModal from "./ShopCartModal";
@@ -456,27 +457,18 @@ export default function ShopInventoryModal({
         </TouchableOpacity>
         
         {selectedImageIndex !== null && allImages[selectedImageIndex] && (
-          <ScrollView
-            style={styles.fullscreenScrollView}
-            contentContainerStyle={styles.fullscreenScrollContent}
-            maximumZoomScale={5}
-            minimumZoomScale={1}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-            bounces={false}
-          >
-            <ShopImage 
+          <View style={styles.fullscreenImageContainer}>
+            <ZoomableShopImage 
               shopImageId={allImages[selectedImageIndex]} 
               style={styles.fullscreenImage}
-              contentFit="contain"
             />
-          </ScrollView>
+          </View>
         )}
         
         {/* Zoom Hint */}
         <View style={styles.fullscreenHint}>
           <Text style={styles.fullscreenHintText}>
-            {/* Pinch to zoom • Double tap to zoom • Tap outside to close */}
+            Double tap to zoom • Tap X to close
           </Text>
         </View>
       </View>
@@ -1545,6 +1537,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     minHeight: screenHeight,
+  },
+  fullscreenImageContainer: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   fullscreenImage: {
     width: screenWidth,

@@ -18,6 +18,7 @@ export const createItem = mutation({
     priceDescription: v.optional(v.string()),
     category: v.optional(v.string()),
     imageId: v.optional(v.id("_storage")),
+    imageIds: v.optional(v.array(v.id("_storage"))),
     offer: v.optional(v.string()),
     barcode: v.optional(v.string()),
     brand: v.optional(v.string()),
@@ -32,6 +33,7 @@ export const createItem = mutation({
       priceDescription: args.priceDescription,
       category: args.category,
       imageId: args.imageId,
+      imageIds: args.imageIds,
       offer: args.offer,
       barcode: args.barcode,
       brand: args.brand,
@@ -76,6 +78,7 @@ export const updateItem = mutation({
     priceDescription: v.optional(v.string()),
     category: v.optional(v.string()),
     imageId: v.optional(v.id("_storage")),
+    imageIds: v.optional(v.array(v.id("_storage"))),
     offer: v.optional(v.string()),
     barcode: v.optional(v.string()),
     brand: v.optional(v.string()),
@@ -91,6 +94,7 @@ export const updateItem = mutation({
     if (args.priceDescription !== undefined) updates.priceDescription = args.priceDescription;
     if (args.category !== undefined) updates.category = args.category;
     if (args.imageId !== undefined) updates.imageId = args.imageId;
+    if (args.imageIds !== undefined) updates.imageIds = args.imageIds;
     if (args.offer !== undefined) updates.offer = args.offer;
     if (args.barcode !== undefined) updates.barcode = args.barcode;
     if (args.brand !== undefined) updates.brand = args.brand;
@@ -216,5 +220,18 @@ export const getItemImage = query({
   args: { imageId: v.id("_storage") },
   handler: async (ctx, args) => {
     return await ctx.storage.getUrl(args.imageId);
+  },
+});
+
+export const getItemImages = query({
+  args: { imageIds: v.array(v.id("_storage")) },
+  handler: async (ctx, args) => {
+    const urls = await Promise.all(
+      args.imageIds.map(async (imageId) => {
+        const url = await ctx.storage.getUrl(imageId);
+        return url;
+      })
+    );
+    return urls.filter((url): url is string => url !== null);
   },
 });
