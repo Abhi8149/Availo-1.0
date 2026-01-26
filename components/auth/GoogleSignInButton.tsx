@@ -51,7 +51,7 @@ export default function GoogleSignInButton({ onSuccess, onNeedRole, onError }: G
         
         // Check if signIn or signUp exists - if so, OAuth might still be processing
         if (signIn || signUp) {
-          console.log("ℹ️ OAuth flow initiated, waiting for callback...");
+          console.log("OAuth flow initiated, waiting for callback...");
           // Don't show error - the callback will handle it
           onSuccess(); // Let parent handle the waiting state
         } else {

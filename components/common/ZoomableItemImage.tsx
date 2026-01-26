@@ -1,26 +1,13 @@
 import React from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
+import { StyleSheet } from 'react-native';
 import ZoomableImage from './ZoomableImage';
 
 interface ZoomableItemImageProps {
-  imageId: Id<"_storage">;
+  imageUrl: string;
   style?: any;
 }
 
-export default function ZoomableItemImage({ imageId, style }: ZoomableItemImageProps) {
-  const imageUrl = useQuery(api.items.getItemImage, { imageId });
-
-  if (!imageUrl) {
-    return (
-      <View style={[styles.loading, style]}>
-        <ActivityIndicator size="large" color="#2563EB" />
-      </View>
-    );
-  }
-
+export default function ZoomableItemImage({ imageUrl, style }: ZoomableItemImageProps) {
   return <ZoomableImage uri={imageUrl} style={style} resizeMode="contain" />;
 }
 

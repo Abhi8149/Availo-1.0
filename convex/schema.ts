@@ -44,8 +44,8 @@ export default defineSchema({
     createdAt: v.number(),
     // New fields
     mobileNumber: v.optional(v.string()),
-    shopImageId: v.optional(v.id("_storage")), // Keep for backward compatibility
-    shopImageIds: v.optional(v.array(v.id("_storage"))), // Multiple images
+    shopImageId: v.optional(v.string()),  // Keep for backward compatibility
+    shopImageIds: v.optional(v.array(v.string())), // Multiple images
     estimatedTime: v.optional(v.object({
       hours: v.number(),
       minutes: v.number(),
@@ -76,8 +76,8 @@ export default defineSchema({
     price: v.optional(v.number()),
     priceDescription: v.optional(v.string()),
     category: v.optional(v.string()),
-    imageId: v.optional(v.id("_storage")),
-    imageIds: v.optional(v.array(v.id("_storage"))),
+    imageId: v.optional(v.string()),
+    imageIds: v.optional(v.array(v.string())),
     inStock: v.boolean(),
     offer: v.optional(v.string()),
     barcode: v.optional(v.string()),
@@ -97,8 +97,8 @@ export default defineSchema({
     shopId: v.id("shops"),
     shopOwnerId: v.id("users"),
     message: v.string(),
-    imageIds: v.optional(v.array(v.id("_storage"))),
-    videoIds: v.optional(v.array(v.id("_storage"))),
+    imageIds: v.optional(v.array(v.string())),
+    videoIds: v.optional(v.array(v.string())),
     isActive: v.boolean(),
     notificationsSent: v.number(),
     createdAt: v.number(),

@@ -55,7 +55,6 @@ export default function ItemDetailsModal({
   onAddToCart,
   isInCart = false
 }: ItemDetailsModalProps) {
-  const [imageFullscreen, setImageFullscreen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -522,7 +521,7 @@ export default function ItemDetailsModal({
         {selectedImageIndex !== null && allImages[selectedImageIndex] && (
           <View style={styles.fullscreenImageContainer}>
             <ZoomableItemImage 
-              imageId={allImages[selectedImageIndex]} 
+              imageUrl={allImages[selectedImageIndex]} 
               style={styles.fullscreenImage}
             />
           </View>
@@ -580,7 +579,7 @@ export default function ItemDetailsModal({
                         activeOpacity={0.8}
                       >
                         <ItemImage 
-                          imageId={imageId} 
+                          imageUrl={imageId} 
                           showOriginalSize={true}
                           contentFit="contain"
                         />

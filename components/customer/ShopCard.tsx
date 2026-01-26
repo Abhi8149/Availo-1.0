@@ -17,7 +17,7 @@ interface Shop {
   isOpen: boolean;
   lastUpdated: number;
   mobileNumber?: string;
-  shopImageId?: Id<"_storage">;
+  shopImageId?: string;
   estimatedTime?: {
     hours: number;
     minutes: number;
@@ -147,7 +147,7 @@ export default function ShopCard({ shop, onViewInventory, showInventoryButton = 
       {/* Shop Image */}
       {shop.shopImageId && (
         <View style={styles.imageContainer}>
-          <ShopImage shopImageId={shop.shopImageId} />
+          <ShopImage imageUrl={shop.shopImageId} />
         </View>
       )}
 

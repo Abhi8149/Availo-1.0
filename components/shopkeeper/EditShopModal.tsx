@@ -21,38 +21,7 @@ import AddressInput from "../common/AddressInput";
 import AdvertisementModal from "./AdvertisementModal";
 import AdvertisementHistoryModal from "./AdvertisementHistoryModal";
 import { FlexibleImagePicker } from "../common/FlexibleImagePicker";
-import { ImageOptimizer } from "../../utils/imageOptimizer";
-
-// Component to display individual images with proper URL fetching
-const ImageDisplay = ({ 
-  imageId, 
-  style, 
-  contentFit = "cover" 
-}: { 
-  imageId: Id<"_storage">; 
-  style: any; 
-  contentFit?: "cover" | "contain" | "fill" 
-}) => {
-  const imageUrl = useQuery(api.shops.getShopImage, { imageId });
-  
-  console.log(`ImageDisplay - imageId: ${imageId}, imageUrl: ${imageUrl}`);
-  
-  if (!imageUrl) {
-    return (
-      <View style={[style, { backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" }]}>
-        <Text style={{ color: "#9CA3AF", fontSize: 12 }}>Loading...</Text>
-      </View>
-    );
-  }
-  
-  return (
-    <Image
-      source={{ uri: imageUrl }}
-      style={style}
-      contentFit={contentFit}
-    />
-  );
-};
+import { CloudinaryUpload } from "../../utils/cloudinaryUpload";
 
 interface Shop {
   _id: Id<"shops">;
@@ -64,8 +33,8 @@ interface Shop {
     address?: string;
   };
   mobileNumber?: string;
-  shopImageId?: Id<"_storage">;
-  shopImageIds?: Id<"_storage">[];
+  shopImageId?: string;
+  shopImageIds?: string[];
   businessHours?: {
     openTime: string;
     closeTime: string;
@@ -94,7 +63,12 @@ const SHOP_CATEGORIES = [
   "other",
 ];
 
-export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: EditShopModalProps) {
+export default function EditShopModal({
+  visible,
+  onClose,
+  shop,
+  shopOwnerId,
+}: EditShopModalProps) {
   const [shopName, setShopName] = useState("");
   const [category, setCategory] = useState("");
   const [customCategory, setCustomCategory] = useState("");
@@ -108,60 +82,69 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
   const [closingHours, setClosingHours] = useState("");
   const [closingMinutes, setClosingMinutes] = useState("");
   const [closingPeriod, setClosingPeriod] = useState("PM");
-  
+
   // Delivery-related states
   const [hasDelivery, setHasDelivery] = useState(false);
   const [deliveryRange, setDeliveryRange] = useState("");
-  
+
   // Image management states
-  const [existingImages, setExistingImages] = useState<Id<"_storage">[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<string[]>([]);
-  const [imagesToDelete, setImagesToDelete] = useState<Id<"_storage">[]>([]);
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
   const [mainImageIndex, setMainImageIndex] = useState<number>(0);
-  
+
   const [loading, setLoading] = useState(false);
-  
+
   // Advertisement modal states
   const [showAdvertisement, setShowAdvertisement] = useState(false);
-  const [showAdvertisementHistory, setShowAdvertisementHistory] = useState(false);
+  const [showAdvertisementHistory, setShowAdvertisementHistory] =
+    useState(false);
   const [editingAdvertisement, setEditingAdvertisement] = useState(null);
 
   const updateShop = useMutation(api.shops.updateShop);
   const deleteShop = useMutation(api.shops.deleteShop);
-  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
-  
-  // Get image URLs for existing images
-  const getImageUrl = (imageId: Id<"_storage">) => {
-    return useQuery(api.shops.getShopImage, { imageId });
-  };
 
-  const convertTo24Hour = (hours: string, minutes: string, period: string): string => {
+  const convertTo24Hour = (
+    hours: string,
+    minutes: string,
+    period: string,
+  ): string => {
     const hour = parseInt(hours) || 0;
     const minute = parseInt(minutes) || 0;
-    
+
     let hour24 = hour;
     if (period === "AM") {
       hour24 = hour === 12 ? 0 : hour;
     } else {
       hour24 = hour === 12 ? 12 : hour + 12;
     }
-    
-    return `${hour24.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+
+    return `${hour24.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
   };
 
-  const convertFrom24Hour = (timeString: string): { hours: string, minutes: string, period: string } => {
-    const [hourStr, minuteStr] = timeString.split(':');
+  const convertFrom24Hour = (
+    timeString: string,
+  ): { hours: string; minutes: string; period: string } => {
+    const [hourStr, minuteStr] = timeString.split(":");
     const hour24 = parseInt(hourStr) || 0;
     const minute = parseInt(minuteStr) || 0;
-    
+
     if (hour24 === 0) {
       return { hours: "12", minutes: minute.toString(), period: "AM" };
     } else if (hour24 < 12) {
-      return { hours: hour24.toString(), minutes: minute.toString(), period: "AM" };
+      return {
+        hours: hour24.toString(),
+        minutes: minute.toString(),
+        period: "AM",
+      };
     } else if (hour24 === 12) {
       return { hours: "12", minutes: minute.toString(), period: "PM" };
     } else {
-      return { hours: (hour24 - 12).toString(), minutes: minute.toString(), period: "PM" };
+      return {
+        hours: (hour24 - 12).toString(),
+        minutes: minute.toString(),
+        period: "PM",
+      };
     }
   };
 
@@ -182,12 +165,12 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
       setLatitude(shop.location.lat.toString());
       setLongitude(shop.location.lng.toString());
       setMobileNumber(shop.mobileNumber || "");
-      
+
       // Load existing business hours or set defaults
       if (shop.businessHours) {
         const openingTime = convertFrom24Hour(shop.businessHours.openTime);
         const closingTime = convertFrom24Hour(shop.businessHours.closeTime);
-        
+
         setOpeningHours(openingTime.hours);
         setOpeningMinutes(openingTime.minutes);
         setOpeningPeriod(openingTime.period);
@@ -203,11 +186,11 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
         setClosingMinutes("0");
         setClosingPeriod("PM");
       }
-      
+
       // Initialize delivery settings
       setHasDelivery(shop.hasDelivery || false);
       setDeliveryRange(shop.deliveryRange ? shop.deliveryRange.toString() : "");
-      
+
       // Initialize images
       if (shop.shopImageIds && shop.shopImageIds.length > 0) {
         console.log("Loading shop images:", shop.shopImageIds);
@@ -222,19 +205,22 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
         console.log("No shop images found");
         setExistingImages([]);
       }
-      
+
       // Reset image management states
       setNewImages([]);
       setImagesToDelete([]);
     }
   }, [shop]);
-
+ const maxImages=10;
   const showImagePickerOptions = async () => {
-    const totalImages = existingImages.filter(id => !imagesToDelete.includes(id)).length + newImages.length;
-    const maxImages = 5;
-    
+    const totalImages =
+      existingImages.filter((id) => !imagesToDelete.includes(id)).length +
+      newImages.length;
     if (totalImages >= maxImages) {
-      Alert.alert("Maximum Images", `You can only have up to ${maxImages} images. Please remove some images first.`);
+      Alert.alert(
+        "Maximum Images",
+        `You can only have up to ${maxImages} images. Please remove some images first.`,
+      );
       return;
     }
 
@@ -245,45 +231,60 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
       });
 
       if (images.length > 0) {
-        const newImageUris = images.map(img => img.uri);
-        setNewImages(prev => [...prev, ...newImageUris]);
-        
+        const newImageUris = images.map((img) => img.uri);
+        setNewImages((prev) => [...prev, ...newImageUris]);
+
         // If these are the first images, make the first one main
-        const totalExisting = existingImages.filter(id => !imagesToDelete.includes(id)).length;
+        const totalExisting = existingImages.filter(
+          (id) => !imagesToDelete.includes(id),
+        ).length;
         if (totalExisting === 0 && newImages.length === 0) {
           setMainImageIndex(0);
         }
-        
+
         if (newImageUris.length > 1) {
-          Alert.alert("Success", `${newImageUris.length} images added successfully!`);
+          Alert.alert(
+            "Success",
+            `${newImageUris.length} images added successfully!`,
+          );
         }
       }
     } catch (error) {
-      console.error('Error picking images:', error);
+      console.error("Error picking images:", error);
       Alert.alert("Error", "Failed to select images");
     }
   };
 
   // Remove existing image
-  const removeExistingImage = (imageId: Id<"_storage">) => {
-    const currentAllImages = [...existingImages.filter(id => !imagesToDelete.includes(id)), ...newImages];
+  const removeExistingImage = (imageId: string) => {
+    const currentAllImages = [
+      ...existingImages.filter((id) => !imagesToDelete.includes(id)),
+      ...newImages,
+    ];
     const currentMainImage = currentAllImages[mainImageIndex];
     const isMainImageBeingDeleted = imageId === currentMainImage;
-    
-    setImagesToDelete(prev => [...prev, imageId]);
-    
+
+    setImagesToDelete((prev) => [...prev, imageId]);
+
     // If main image is being deleted, automatically select the first remaining image
     if (isMainImageBeingDeleted) {
-      const remainingExisting = existingImages.filter(id => !imagesToDelete.includes(id) && id !== imageId);
+      const remainingExisting = existingImages.filter(
+        (id) => !imagesToDelete.includes(id) && id !== imageId,
+      );
       const totalRemaining = remainingExisting.length + newImages.length;
-      
+
       if (totalRemaining > 0) {
         setMainImageIndex(0); // Always set to first remaining image
       }
     } else {
       // Adjust main image index if the deleted image was before the current main
-      const deletedImageGlobalIndex = existingImages.filter(id => !imagesToDelete.includes(id)).indexOf(imageId);
-      if (deletedImageGlobalIndex >= 0 && deletedImageGlobalIndex < mainImageIndex) {
+      const deletedImageGlobalIndex = existingImages
+        .filter((id) => !imagesToDelete.includes(id))
+        .indexOf(imageId);
+      if (
+        deletedImageGlobalIndex >= 0 &&
+        deletedImageGlobalIndex < mainImageIndex
+      ) {
         setMainImageIndex(Math.max(0, mainImageIndex - 1));
       }
     }
@@ -291,25 +292,32 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
 
   // Remove new image
   const removeNewImage = (index: number) => {
-    const currentAllImages = [...existingImages.filter(id => !imagesToDelete.includes(id)), ...newImages];
+    const currentAllImages = [
+      ...existingImages.filter((id) => !imagesToDelete.includes(id)),
+      ...newImages,
+    ];
     const currentMainImage = currentAllImages[mainImageIndex];
     const imageBeingDeleted = newImages[index];
     const isMainImageBeingDeleted = imageBeingDeleted === currentMainImage;
-    
-    setNewImages(prev => prev.filter((_, i) => i !== index));
-    
+
+    setNewImages((prev) => prev.filter((_, i) => i !== index));
+
     // If main image is being deleted, automatically select the first remaining image
     if (isMainImageBeingDeleted) {
-      const remainingExisting = existingImages.filter(id => !imagesToDelete.includes(id));
+      const remainingExisting = existingImages.filter(
+        (id) => !imagesToDelete.includes(id),
+      );
       const remainingNew = newImages.filter((_, i) => i !== index);
       const totalRemaining = remainingExisting.length + remainingNew.length;
-      
+
       if (totalRemaining > 0) {
         setMainImageIndex(0); // Always set to first remaining image
       }
     } else {
       // Adjust main image index if the deleted image was before the current main
-      const deletedImageGlobalIndex = existingImages.filter(id => !imagesToDelete.includes(id)).length + index;
+      const deletedImageGlobalIndex =
+        existingImages.filter((id) => !imagesToDelete.includes(id)).length +
+        index;
       if (deletedImageGlobalIndex < mainImageIndex) {
         setMainImageIndex(Math.max(0, mainImageIndex - 1));
       }
@@ -317,30 +325,37 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
   };
 
   // Set image as main
-  const setAsMainImage = (type: 'existing' | 'new', index: number) => {
-    if (type === 'existing') {
-      const remainingExisting = existingImages.filter(id => !imagesToDelete.includes(id));
+  const setAsMainImage = (type: "existing" | "new", index: number) => {
+    if (type === "existing") {
+      const remainingExisting = existingImages.filter(
+        (id) => !imagesToDelete.includes(id),
+      );
       setMainImageIndex(index);
     } else {
-      const remainingExisting = existingImages.filter(id => !imagesToDelete.includes(id));
+      const remainingExisting = existingImages.filter(
+        (id) => !imagesToDelete.includes(id),
+      );
       setMainImageIndex(remainingExisting.length + index);
     }
   };
 
   // Replace image functions
-  const showReplaceImageOptions = (type: 'existing' | 'new', index: number) => {
-    Alert.alert(
-      "Replace Image",
-      "Choose how to replace this image",
-      [
-        { text: "Choose & Crop", onPress: () => replaceImage(type, index, true) },
-        { text: "Choose Full Image", onPress: () => replaceImage(type, index, false) },
-        { text: "Cancel", style: "cancel" },
-      ]
-    );
+  const showReplaceImageOptions = (type: "existing" | "new", index: number) => {
+    Alert.alert("Replace Image", "Choose how to replace this image", [
+      { text: "Choose & Crop", onPress: () => replaceImage(type, index, true) },
+      {
+        text: "Choose Full Image",
+        onPress: () => replaceImage(type, index, false),
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
-  const replaceImage = async (type: 'existing' | 'new', index: number, allowCrop: boolean = true) => {
+  const replaceImage = async (
+    type: "existing" | "new",
+    index: number,
+    allowCrop: boolean = true,
+  ) => {
     try {
       const image = await FlexibleImagePicker.pickImage({
         quality: 0.8,
@@ -348,22 +363,24 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
       });
 
       if (image) {
-        if (type === 'existing') {
+        if (type === "existing") {
           // For existing images, mark old for deletion and add new
           const oldImageId = existingImages[index];
           if (oldImageId && !imagesToDelete.includes(oldImageId)) {
-            setImagesToDelete(prev => [...prev, oldImageId]);
+            setImagesToDelete((prev) => [...prev, oldImageId]);
           }
-          setNewImages(prev => [...prev, image.uri]);
-          
+          setNewImages((prev) => [...prev, image.uri]);
+
           // Update main image index if this was the main image
           if (index === mainImageIndex) {
-            const remainingExisting = existingImages.filter(id => !imagesToDelete.includes(id));
+            const remainingExisting = existingImages.filter(
+              (id) => !imagesToDelete.includes(id),
+            );
             setMainImageIndex(remainingExisting.length + newImages.length);
           }
         } else {
           // For new images, just replace in the array
-          setNewImages(prev => {
+          setNewImages((prev) => {
             const updated = [...prev];
             updated[index] = image.uri;
             return updated;
@@ -376,44 +393,28 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
     }
   };
 
-  const uploadImage = async (uri: string): Promise<Id<"_storage"> | null> => {
-    try {
-      // Optimize image before uploading
-      console.log('Optimizing shop image...');
-      const optimizedUri = await ImageOptimizer.optimizeShopImage(uri);
-      
-      const uploadUrl = await generateUploadUrl();
-      
-      const response = await fetch(optimizedUri);
-      const blob = await response.blob();
-      
-      console.log(`Uploading optimized shop image (${(blob.size / 1024).toFixed(2)} KB)...`);
-      
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": blob.type },
-        body: blob,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const { storageId } = await uploadResponse.json();
-      console.log('Shop image uploaded successfully');
-      return storageId;
-    } catch (error) {
-      console.error("Image upload error:", error);
-      return null;
+  const uploadImage = async (uri: string): Promise<string> => {
+    const result = await CloudinaryUpload.uploadImage(uri, "shops", "shop");
+    if (!result) {
+      throw new Error("Image upload failed for shop image: " + uri);
     }
+    return result;
   };
 
   const handleSubmit = async () => {
     if (!shop) return;
 
-    const finalCategory = category === "other" ? customCategory.trim() : category;
+    const finalCategory =
+      category === "other" ? customCategory.trim() : category;
 
-    if (!shopName.trim() || !finalCategory || !address.trim() || !latitude || !longitude || !mobileNumber.trim()) {
+    if (
+      !shopName.trim() ||
+      !finalCategory ||
+      !address.trim() ||
+      !latitude ||
+      !longitude ||
+      !mobileNumber.trim()
+    ) {
       Alert.alert("Error", "Please fill in all required fields");
       return;
     }
@@ -426,7 +427,14 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
 
-    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    if (
+      isNaN(lat) ||
+      isNaN(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ) {
       Alert.alert("Error", "Please enter valid coordinates");
       return;
     }
@@ -439,39 +447,68 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
     setLoading(true);
     try {
       // Process images
-      const finalImageIds: Id<"_storage">[] = [];
-      let mainImageId: Id<"_storage"> | undefined;
-
+      const newUploadedUrls: string[] = [];
       // Keep existing images that aren't marked for deletion
-      const remainingExisting = existingImages.filter(id => !imagesToDelete.includes(id));
-      finalImageIds.push(...remainingExisting);
-
-      // Upload new images
-      for (const imageUri of newImages) {
-        const uploadedId = await uploadImage(imageUri);
-        if (uploadedId) {
-          finalImageIds.push(uploadedId);
+      if (newImages.length > 0) {
+        console.log(`Uploading ${newImages.length} new images...`);
+        for (const imageUri of newImages) {
+          try {
+            const url = await uploadImage(imageUri);
+            newUploadedUrls.push(url);
+          } catch (uploadError) {
+            console.error("Failed to upload image:", uploadError);
+            setLoading(false);
+            Alert.alert(
+              "Upload Failed",
+              "Failed to upload one or more images. Please check your connection and try again."
+            );
+            return;
+          }
         }
       }
 
-      // Set main image
-      if (finalImageIds.length > 0) {
-        mainImageId = finalImageIds[Math.min(mainImageIndex, finalImageIds.length - 1)];
-      }
+      // Combine existing (not deleted) with new uploads
+      const remainingExisting = existingImages.filter(
+        (url) => !imagesToDelete.includes(url),
+      );
+      const allImageUrls = [...remainingExisting, ...newUploadedUrls];
 
       // Prepare business hours if valid
       let businessHours;
-      if (openingHours && openingMinutes !== undefined && closingHours && closingMinutes !== undefined) {
-        const openTime = convertTo24Hour(openingHours, openingMinutes, openingPeriod);
-        const closeTime = convertTo24Hour(closingHours, closingMinutes, closingPeriod);
+      if (
+        openingHours &&
+        openingMinutes !== undefined &&
+        closingHours &&
+        closingMinutes !== undefined
+      ) {
+        const openTime = convertTo24Hour(
+          openingHours,
+          openingMinutes,
+          openingPeriod,
+        );
+        const closeTime = convertTo24Hour(
+          closingHours,
+          closingMinutes,
+          closingPeriod,
+        );
         businessHours = { openTime, closeTime };
       }
-      if(businessHours===undefined){
-      Alert.alert("Error", "Please fill the business hours in which you operate");
-      return;
+      if (businessHours === undefined) {
+        setLoading(false);
+        Alert.alert(
+          "Error",
+          "Please fill the business hours in which you operate",
+        );
+        return;
       }
       // Validate delivery range if delivery is enabled
-      if (hasDelivery && (!deliveryRange || isNaN(parseFloat(deliveryRange)) || parseFloat(deliveryRange) <= 0)) {
+      if (
+        hasDelivery &&
+        (!deliveryRange ||
+          isNaN(parseFloat(deliveryRange)) ||
+          parseFloat(deliveryRange) <= 0)
+      ) {
+        setLoading(false);
         Alert.alert("Error", "Please enter a valid delivery range");
         return;
       }
@@ -486,8 +523,8 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
           address: address.trim(),
         },
         mobileNumber: mobileNumber.trim(),
-        shopImageId: mainImageId, // For backward compatibility
-        shopImageIds: finalImageIds.length > 0 ? finalImageIds : undefined,
+        shopImageId: allImageUrls[0], // For backward compatibility
+        shopImageIds: allImageUrls.length > 0 ? allImageUrls : undefined,
         businessHours,
         hasDelivery,
         deliveryRange: hasDelivery ? parseFloat(deliveryRange) : undefined,
@@ -536,7 +573,7 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -555,7 +592,7 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
       presentationStyle="pageSheet"
       onRequestClose={handleClose}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
@@ -564,10 +601,7 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
             <Ionicons name="close" size={24} color="#6B7280" />
           </TouchableOpacity>
           <Text style={styles.title}>Edit Shop</Text>
-          <TouchableOpacity 
-            onPress={handleDelete} 
-            disabled={loading}
-          >
+          <TouchableOpacity onPress={handleDelete} disabled={loading}>
             <Ionicons name="trash" size={24} color="#DC2626" />
           </TouchableOpacity>
         </View>
@@ -577,44 +611,59 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
             {/* Shop Images Section - Top of Page */}
             <View style={styles.topImageSection}>
               <Text style={styles.sectionTitle}>Shop Images</Text>
-              
+
               {(() => {
                 const allImages = [
-                  ...existingImages.filter(id => !imagesToDelete.includes(id)),
-                  ...newImages
+                  ...existingImages.filter(
+                    (id) => !imagesToDelete.includes(id),
+                  ),
+                  ...newImages,
                 ];
-                
+
                 if (allImages.length === 0) {
                   // No images state - Show camera options
                   return (
                     <View style={styles.noImagesContainer}>
                       <View style={styles.emptyMainImageArea}>
                         <View style={styles.cameraIconContainer}>
-                          <Ionicons name="camera-outline" size={64} color="#9CA3AF" />
+                          <Ionicons
+                            name="camera-outline"
+                            size={64}
+                            color="#9CA3AF"
+                          />
                         </View>
-                        <Text style={styles.noImagesTitle}>Add Shop Images</Text>
+                        <Text style={styles.noImagesTitle}>
+                          Add Shop Images
+                        </Text>
                         <Text style={styles.noImagesSubtitle}>
                           Add up to 10 images to showcase your shop
                         </Text>
-                        
+
                         <View style={styles.initialImageOptions}>
                           <TouchableOpacity
-                            style={[styles.imageOptionButton, styles.multipleButton]}
+                            style={[
+                              styles.imageOptionButton,
+                              styles.multipleButton,
+                            ]}
                             onPress={showImagePickerOptions}
                           >
                             <Ionicons name="images" size={24} color="#FFFFFF" />
-                            <Text style={styles.imageOptionButtonText}>Add Shop Photos</Text>
+                            <Text style={styles.imageOptionButtonText}>
+                              Add Shop Photos
+                            </Text>
                           </TouchableOpacity>
                         </View>
                       </View>
                     </View>
                   );
                 }
-                
+
                 // Has images state
                 const mainImageSrc = allImages[mainImageIndex];
-                const isMainImageExisting = existingImages.includes(mainImageSrc as Id<"_storage">);
-                
+                const isMainImageExisting = existingImages.includes(
+                  mainImageSrc
+                );
+
                 console.log("=== Main Image Debug ===");
                 console.log("All images:", allImages);
                 console.log("Main image index:", mainImageIndex);
@@ -623,50 +672,59 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
                 console.log("Existing images:", existingImages);
                 console.log("New images:", newImages);
                 console.log("========================");
-                
+
                 return (
                   <View style={styles.imagesContainer}>
                     {/* Main Image Display */}
                     <View style={styles.mainImageSection}>
                       <View style={styles.mainImageFrame}>
-                        {isMainImageExisting ? (
-                          <ImageDisplay 
-                            imageId={mainImageSrc as Id<"_storage">} 
-                            style={styles.mainImage}
-                          />
-                        ) : (
-                          <Image
-                            source={{ uri: mainImageSrc as string }}
-                            style={styles.mainImage}
-                            contentFit="cover"
-                          />
-                        )}
-                        
+                        <Image
+                          source={{ uri: mainImageSrc as string }}
+                          style={styles.mainImage}
+                          contentFit="cover"
+                        />
+
                         {/* Main Image Controls Overlay */}
                         <View style={styles.mainImageControls}>
                           <TouchableOpacity
-                            style={[styles.imageControlButton, styles.editControlButton]}
+                            style={[
+                              styles.imageControlButton,
+                              styles.editControlButton,
+                            ]}
                             onPress={() => {
-                              if (isMainImageExisting) {
-                                const existingIndex = existingImages.indexOf(mainImageSrc as Id<"_storage">);
-                                showReplaceImageOptions('existing', existingIndex);
-                              } else {
-                                const newIndex = newImages.indexOf(mainImageSrc as string);
-                                showReplaceImageOptions('new', newIndex);
-                              }
+                              const isExisting = existingImages.includes(
+                                mainImageSrc as string,
+                              );
+                              const index = isExisting
+                                ? existingImages.indexOf(mainImageSrc as string)
+                                : newImages.indexOf(mainImageSrc as string);
+                              showReplaceImageOptions(
+                                isExisting ? "existing" : "new",
+                                index,
+                              );
                             }}
                           >
                             <Ionicons name="camera" size={18} color="#FFFFFF" />
-                            <Text style={styles.controlButtonText}>Replace</Text>
+                            <Text style={styles.controlButtonText}>
+                              Replace
+                            </Text>
                           </TouchableOpacity>
-                          
+
                           <TouchableOpacity
-                            style={[styles.imageControlButton, styles.deleteControlButton]}
+                            style={[
+                              styles.imageControlButton,
+                              styles.deleteControlButton,
+                            ]}
                             onPress={() => {
-                              if (isMainImageExisting) {
-                                removeExistingImage(mainImageSrc as Id<"_storage">);
+                              const isExisting = existingImages.includes(
+                                mainImageSrc as string,
+                              );
+                              if (isExisting) {
+                                removeExistingImage(mainImageSrc as string);
                               } else {
-                                const newIndex = newImages.indexOf(mainImageSrc as string);
+                                const newIndex = newImages.indexOf(
+                                  mainImageSrc as string,
+                                );
                                 removeNewImage(newIndex);
                               }
                             }}
@@ -677,7 +735,7 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
                         </View>
                       </View>
                     </View>
-                    
+
                     {/* Horizontal Image List */}
                     <View style={styles.imageListSection}>
                       <View style={styles.imageListHeader}>
@@ -694,93 +752,134 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
                           </TouchableOpacity>
                         )}
                       </View>
-                      
-                      <ScrollView 
-                        horizontal 
+
+                      <ScrollView
+                        horizontal
                         showsHorizontalScrollIndicator={false}
                         style={styles.imageScrollContainer}
                         contentContainerStyle={styles.imageScrollContent}
                       >
                         {allImages.map((imageSrc, index) => {
-                          const isExisting = existingImages.includes(imageSrc as Id<"_storage">);
+                          const isExisting = existingImages.includes(
+                            imageSrc as string,
+                          );
                           const isMain = index === mainImageIndex;
-                          const originalIndex = isExisting 
-                            ? existingImages.indexOf(imageSrc as Id<"_storage">)
+                          const originalIndex = isExisting
+                            ? existingImages.indexOf(imageSrc as string)
                             : newImages.indexOf(imageSrc as string);
-                          
+
                           return (
-                            <View 
-                              key={`${isExisting ? 'existing' : 'new'}-${imageSrc}-${index}`}
-                              style={[styles.imageListItem, isMain && styles.imageListItemMain]}
+                            <View
+                              key={`${isExisting ? "existing" : "new"}-${imageSrc}-${index}`}
+                              style={[
+                                styles.imageListItem,
+                                isMain && styles.imageListItemMain,
+                              ]}
                             >
                               {/* Image Thumbnail */}
                               <View style={styles.imageListThumbnailContainer}>
-                                {isExisting ? (
-                                  <ImageDisplay 
-                                    imageId={imageSrc as Id<"_storage">} 
-                                    style={styles.imageListThumbnail}
-                                  />
-                                ) : (
-                                  <Image
-                                    source={{ uri: imageSrc as string }}
-                                    style={styles.imageListThumbnail}
-                                    contentFit="cover"
-                                  />
-                                )}
-                                
+                                <Image
+                                  source={{ uri: imageSrc as string }}
+                                  style={styles.imageListThumbnail}
+                                  contentFit="cover"
+                                />
+
                                 {/* Main Image Badge */}
                                 {isMain && (
                                   <View style={styles.mainBadge}>
-                                    <Text style={styles.mainBadgeText}>MAIN</Text>
+                                    <Text style={styles.mainBadgeText}>
+                                      MAIN
+                                    </Text>
                                   </View>
                                 )}
                               </View>
-                              
+
                               {/* Image Controls */}
                               <View style={styles.imageListControls}>
                                 {!isMain && (
                                   <TouchableOpacity
-                                    style={[styles.imageListButton, styles.setMainButton]}
-                                    onPress={() => setAsMainImage(isExisting ? 'existing' : 'new', originalIndex)}
+                                    style={[
+                                      styles.imageListButton,
+                                      styles.setMainButton,
+                                    ]}
+                                    onPress={() =>
+                                      setAsMainImage(
+                                        isExisting ? "existing" : "new",
+                                        originalIndex,
+                                      )
+                                    }
                                   >
-                                    <Ionicons name="star" size={14} color="#FFFFFF" />
-                                    <Text style={styles.imageListButtonText}>Set Main</Text>
+                                    <Ionicons
+                                      name="star"
+                                      size={14}
+                                      color="#FFFFFF"
+                                    />
+                                    <Text style={styles.imageListButtonText}>
+                                      Set Main
+                                    </Text>
                                   </TouchableOpacity>
                                 )}
-                                
+
                                 <TouchableOpacity
-                                  style={[styles.imageListButton, styles.editButton]}
-                                  onPress={() => showReplaceImageOptions(isExisting ? 'existing' : 'new', originalIndex)}
+                                  style={[
+                                    styles.imageListButton,
+                                    styles.editButton,
+                                  ]}
+                                  onPress={() =>
+                                    showReplaceImageOptions(
+                                      isExisting ? "existing" : "new",
+                                      originalIndex,
+                                    )
+                                  }
                                 >
-                                  <Ionicons name="camera" size={14} color="#FFFFFF" />
-                                  <Text style={styles.imageListButtonText}>Edit</Text>
+                                  <Ionicons
+                                    name="camera"
+                                    size={14}
+                                    color="#FFFFFF"
+                                  />
+                                  <Text style={styles.imageListButtonText}>
+                                    Edit
+                                  </Text>
                                 </TouchableOpacity>
-                                
+
                                 <TouchableOpacity
-                                  style={[styles.imageListButton, styles.deleteButton]}
+                                  style={[
+                                    styles.imageListButton,
+                                    styles.deleteButton,
+                                  ]}
                                   onPress={() => {
                                     Alert.alert(
                                       "Delete Image",
-                                      isMain ? "This is your main image. Deleting it will make another image the main image." : "Are you sure you want to delete this image?",
+                                      isMain
+                                        ? "This is your main image. Deleting it will make another image the main image."
+                                        : "Are you sure you want to delete this image?",
                                       [
                                         { text: "Cancel", style: "cancel" },
-                                        { 
-                                          text: "Delete", 
+                                        {
+                                          text: "Delete",
                                           style: "destructive",
                                           onPress: () => {
                                             if (isExisting) {
-                                              removeExistingImage(imageSrc as Id<"_storage">);
+                                              removeExistingImage(
+                                                imageSrc as string,
+                                              );
                                             } else {
                                               removeNewImage(originalIndex);
                                             }
-                                          }
-                                        }
-                                      ]
+                                          },
+                                        },
+                                      ],
                                     );
                                   }}
                                 >
-                                  <Ionicons name="trash" size={14} color="#FFFFFF" />
-                                  <Text style={styles.imageListButtonText}>Delete</Text>
+                                  <Ionicons
+                                    name="trash"
+                                    size={14}
+                                    color="#FFFFFF"
+                                  />
+                                  <Text style={styles.imageListButtonText}>
+                                    Delete
+                                  </Text>
                                 </TouchableOpacity>
                               </View>
                             </View>
@@ -808,13 +907,18 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Mobile Number *</Text>
               <View style={styles.mobileInputContainer}>
-                <Ionicons name="call" size={20} color="#2563EB" style={styles.mobileIcon} />
+                <Ionicons
+                  name="call"
+                  size={20}
+                  color="#2563EB"
+                  style={styles.mobileIcon}
+                />
                 <TextInput
                   style={styles.mobileInput}
                   value={mobileNumber}
                   onChangeText={(text) => {
                     // Only allow digits and limit to 10 characters
-                    const cleaned = text.replace(/\D/g, '');
+                    const cleaned = text.replace(/\D/g, "");
                     if (cleaned.length <= 10) {
                       setMobileNumber(cleaned);
                     }
@@ -845,10 +949,12 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
                         }
                       }}
                     >
-                      <Text style={[
-                        styles.categoryButtonText,
-                        category === cat && styles.categoryButtonTextSelected,
-                      ]}>
+                      <Text
+                        style={[
+                          styles.categoryButtonText,
+                          category === cat && styles.categoryButtonTextSelected,
+                        ]}
+                      >
                         {cat.charAt(0).toUpperCase() + cat.slice(1)}
                       </Text>
                     </TouchableOpacity>
@@ -888,7 +994,11 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.label}>Latitude *</Text>
                 <TextInput
-                  style={[styles.input, styles.coordinateInput, styles.readOnlyInput]}
+                  style={[
+                    styles.input,
+                    styles.coordinateInput,
+                    styles.readOnlyInput,
+                  ]}
                   value={latitude}
                   placeholder="Auto-filled"
                   keyboardType="numeric"
@@ -899,7 +1009,11 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.label}>Longitude *</Text>
                 <TextInput
-                  style={[styles.input, styles.coordinateInput, styles.readOnlyInput]}
+                  style={[
+                    styles.input,
+                    styles.coordinateInput,
+                    styles.readOnlyInput,
+                  ]}
                   value={longitude}
                   placeholder="Auto-filled"
                   keyboardType="numeric"
@@ -910,16 +1024,21 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
             </View>
 
             <View style={styles.coordinatesHint}>
-              <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
+              <Ionicons
+                name="information-circle-outline"
+                size={16}
+                color="#6B7280"
+              />
               <Text style={styles.hintText}>
-                Coordinates will be auto-filled when you select an address from the search results.
+                Coordinates will be auto-filled when you select an address from
+                the search results.
               </Text>
             </View>
 
             {/* Business Hours Section */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Business Hours</Text>
-              
+
               {/* Opening Hours */}
               <View style={styles.businessHoursSection}>
                 <Text style={styles.businessHoursLabel}>Opening Time</Text>
@@ -930,9 +1049,9 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
                       style={styles.timeInput}
                       value={openingHours}
                       onChangeText={(text) => {
-                        const cleaned = text.replace(/\D/g, '');
+                        const cleaned = text.replace(/\D/g, "");
                         const num = parseInt(cleaned);
-                        if (cleaned === '' || (num >= 1 && num <= 12)) {
+                        if (cleaned === "" || (num >= 1 && num <= 12)) {
                           setOpeningHours(cleaned);
                         }
                       }}
@@ -949,9 +1068,9 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
                       style={styles.timeInput}
                       value={openingMinutes}
                       onChangeText={(text) => {
-                        const cleaned = text.replace(/\D/g, '');
+                        const cleaned = text.replace(/\D/g, "");
                         const num = parseInt(cleaned);
-                        if (cleaned === '' || (num >= 0 && num <= 59)) {
+                        if (cleaned === "" || (num >= 0 && num <= 59)) {
                           setOpeningMinutes(cleaned);
                         }
                       }}
@@ -965,26 +1084,36 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
                     <TouchableOpacity
                       style={[
                         styles.periodButton,
-                        openingPeriod === "AM" && styles.periodButtonSelected
+                        openingPeriod === "AM" && styles.periodButtonSelected,
                       ]}
                       onPress={() => setOpeningPeriod("AM")}
                     >
-                      <Text style={[
-                        styles.periodButtonText,
-                        openingPeriod === "AM" && styles.periodButtonTextSelected
-                      ]}>AM</Text>
+                      <Text
+                        style={[
+                          styles.periodButtonText,
+                          openingPeriod === "AM" &&
+                            styles.periodButtonTextSelected,
+                        ]}
+                      >
+                        AM
+                      </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[
                         styles.periodButton,
-                        openingPeriod === "PM" && styles.periodButtonSelected
+                        openingPeriod === "PM" && styles.periodButtonSelected,
                       ]}
                       onPress={() => setOpeningPeriod("PM")}
                     >
-                      <Text style={[
-                        styles.periodButtonText,
-                        openingPeriod === "PM" && styles.periodButtonTextSelected
-                      ]}>PM</Text>
+                      <Text
+                        style={[
+                          styles.periodButtonText,
+                          openingPeriod === "PM" &&
+                            styles.periodButtonTextSelected,
+                        ]}
+                      >
+                        PM
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1000,9 +1129,9 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
                       style={styles.timeInput}
                       value={closingHours}
                       onChangeText={(text) => {
-                        const cleaned = text.replace(/\D/g, '');
+                        const cleaned = text.replace(/\D/g, "");
                         const num = parseInt(cleaned);
-                        if (cleaned === '' || (num >= 1 && num <= 12)) {
+                        if (cleaned === "" || (num >= 1 && num <= 12)) {
                           setClosingHours(cleaned);
                         }
                       }}
@@ -1018,9 +1147,9 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
                       style={styles.timeInput}
                       value={closingMinutes}
                       onChangeText={(text) => {
-                        const cleaned = text.replace(/\D/g, '');
+                        const cleaned = text.replace(/\D/g, "");
                         const num = parseInt(cleaned);
-                        if (cleaned === '' || (num >= 0 && num <= 59)) {
+                        if (cleaned === "" || (num >= 0 && num <= 59)) {
                           setClosingMinutes(cleaned);
                         }
                       }}
@@ -1033,31 +1162,41 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
                     <TouchableOpacity
                       style={[
                         styles.periodButton,
-                        closingPeriod === "AM" && styles.periodButtonSelected
+                        closingPeriod === "AM" && styles.periodButtonSelected,
                       ]}
                       onPress={() => setClosingPeriod("AM")}
                     >
-                      <Text style={[
-                        styles.periodButtonText,
-                        closingPeriod === "AM" && styles.periodButtonTextSelected
-                      ]}>AM</Text>
+                      <Text
+                        style={[
+                          styles.periodButtonText,
+                          closingPeriod === "AM" &&
+                            styles.periodButtonTextSelected,
+                        ]}
+                      >
+                        AM
+                      </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[
                         styles.periodButton,
-                        closingPeriod === "PM" && styles.periodButtonSelected
+                        closingPeriod === "PM" && styles.periodButtonSelected,
                       ]}
                       onPress={() => setClosingPeriod("PM")}
                     >
-                      <Text style={[
-                        styles.periodButtonText,
-                        closingPeriod === "PM" && styles.periodButtonTextSelected
-                      ]}>PM</Text>
+                      <Text
+                        style={[
+                          styles.periodButtonText,
+                          closingPeriod === "PM" &&
+                            styles.periodButtonTextSelected,
+                        ]}
+                      >
+                        PM
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               </View>
-              
+
               <Text style={styles.timeHint}>
                 Set your regular business hours (12-hour format)
               </Text>
@@ -1137,26 +1276,35 @@ export default function EditShopModal({ visible, onClose, shop, shopOwnerId }: E
               <View style={styles.advertiseButtonContent}>
                 <Ionicons name="megaphone" size={24} color="#F59E0B" />
                 <View style={styles.advertiseButtonText}>
-                  <Text style={styles.advertiseButtonTitle}>Advertise here</Text>
-                  <Text style={styles.advertiseButtonSubtitle}>Notify locals about your shop</Text>
+                  <Text style={styles.advertiseButtonTitle}>
+                    Advertise here
+                  </Text>
+                  <Text style={styles.advertiseButtonSubtitle}>
+                    Notify locals about your shop
+                  </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
               </View>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.historyButton}
               onPress={() => setShowAdvertisementHistory(true)}
             >
               <Ionicons name="time-outline" size={20} color="#6B7280" />
-              <Text style={styles.historyButtonText}>Advertisement History</Text>
+              <Text style={styles.historyButtonText}>
+                Advertisement History
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[
+              styles.submitButton,
+              loading && styles.submitButtonDisabled,
+            ]}
             onPress={handleSubmit}
             disabled={loading}
           >
@@ -1515,7 +1663,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
   },
-  
+
   // No Images State
   noImagesContainer: {
     alignItems: "center",
@@ -1580,7 +1728,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  
+
   // Has Images State
   imagesContainer: {
     gap: 24,
@@ -1644,7 +1792,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
-  
+
   // Image List Section
   imageListSection: {
     backgroundColor: "#FFFFFF",
@@ -1747,7 +1895,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  
+
   // Legacy styles (keeping for compatibility)
   addImageButton: {
     flexDirection: "row",
@@ -1839,7 +1987,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontStyle: "italic",
   },
-  
+
   // Delivery styles
   statusButtons: {
     flexDirection: "row",

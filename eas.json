@@ -19,7 +19,9 @@
       "env": {
         "EXPO_PUBLIC_CONVEX_URL": "https://helpful-ermine-601.convex.cloud",
         "EXPO_PUBLIC_LOCATIONIQ_API_KEY":"pk.2e5d70a914f544ff9b993af9ac29d478",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY":"pk_live_Y2xlcmsuc2hvcHN0YXR1cy5saXZlJA"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY":"pk_live_Y2xlcmsuc2hvcHN0YXR1cy5saXZlJA",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME":"dsfzajwpa",
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET":"Availo_unsigned"
       },
       "android": {
         "buildType": "apk"

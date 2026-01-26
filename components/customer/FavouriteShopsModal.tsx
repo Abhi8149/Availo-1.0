@@ -98,7 +98,7 @@ export default function FavouriteShopsModal({
         {/* Shop Image */}
         <View style={styles.shopImageContainer}>
           {item.shopImageId ? (
-            <ShopImage shopImageId={item.shopImageId} />
+            <ShopImage imageUrl={item.shopImageId} />
           ) : (
             <View style={styles.placeholderImage}>
               <Ionicons 

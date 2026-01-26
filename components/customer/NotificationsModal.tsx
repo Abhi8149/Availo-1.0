@@ -17,7 +17,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import AdvertisementImage from "../common/AdvertisementImage";
 import ZoomableAdvertisementImage from "../common/ZoomableAdvertisementImage";
-import { Video, ResizeMode } from 'expo-av';
+import { Video, ResizeMode } from "expo-av";
 
 interface NotificationsModalProps {
   visible: boolean;
@@ -27,31 +27,39 @@ interface NotificationsModalProps {
   targetAdvertisementId?: Id<"advertisements"> | null; // Add this prop to highlight specific advertisement
 }
 
-export default function NotificationsModal({ 
-  visible, 
-  onClose, 
-  userId, 
+export default function NotificationsModal({
+  visible,
+  onClose,
+  userId,
   onViewShop,
-  targetAdvertisementId
+  targetAdvertisementId,
 }: NotificationsModalProps) {
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
-  const [fullscreenImageId, setFullscreenImageId] = useState<Id<"_storage"> | null>(null);
+  const [fullscreenImageId, setFullscreenImageId] = useState<string | null>(
+    null,
+  );
   const [videoModalVisible, setVideoModalVisible] = useState(false);
-  const [selectedVideoId, setSelectedVideoId] = useState<Id<"_storage"> | null>(null);
-  
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+
   const flatListRef = useRef<FlatList>(null);
-  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-  const notifications = useQuery(api.advertisements.getNotificationsByUser, { 
-    userId 
+  const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+  const notifications = useQuery(api.advertisements.getNotificationsByUser, {
+    userId,
   });
 
   // Auto-scroll to target advertisement when modal opens
   useEffect(() => {
-    if (visible && targetAdvertisementId && notifications && notifications.length > 0) {
+    if (
+      visible &&
+      targetAdvertisementId &&
+      notifications &&
+      notifications.length > 0
+    ) {
       const targetIndex = notifications.findIndex(
-        (notification: any) => notification.advertisement?._id === targetAdvertisementId
+        (notification: any) =>
+          notification.advertisement?._id === targetAdvertisementId,
       );
-      
+
       if (targetIndex >= 0 && flatListRef.current) {
         // Delay scroll to ensure modal is fully rendered
         setTimeout(() => {
@@ -65,20 +73,26 @@ export default function NotificationsModal({
     }
   }, [visible, targetAdvertisementId, notifications]);
 
-  const handleImagePress = (imageId: Id<"_storage">) => {
-    setFullscreenImageId(imageId);
-  };
-
-  const handleVideoPress = (videoId: Id<"_storage">) => {
-    setSelectedVideoId(videoId);
+  const handleVideoPress = (videoUrl: string) => {
+    setSelectedVideoId(videoUrl);
     setVideoModalVisible(true);
   };
 
+  const handleImagePress = (imageUrl: string) => {
+    setFullscreenImageId(imageUrl);
+  };
+
   // Video Component with Convex URL fetching
-  const VideoComponent = ({ videoId, index }: { videoId: Id<"_storage">, index: number }) => {
+  const VideoComponent = ({
+    videoId,
+    index,
+  }: {
+    videoId: string;
+    index: number;
+  }) => {
     return (
-      <TouchableOpacity 
-        style={styles.videoWrapper} 
+      <TouchableOpacity
+        style={styles.videoWrapper}
         onPress={() => handleVideoPress(videoId)}
         activeOpacity={0.8}
       >
@@ -126,13 +140,15 @@ export default function NotificationsModal({
 
   const renderNotificationItem = ({ item }: { item: any }) => {
     // Check if this is the target advertisement to highlight
-    const isTargetAd = targetAdvertisementId && item.advertisement?._id === targetAdvertisementId;
-    
+    const isTargetAd =
+      targetAdvertisementId &&
+      item.advertisement?._id === targetAdvertisementId;
+
     return (
       <TouchableOpacity
         style={[
           styles.adCard,
-          isTargetAd && styles.targetAdCard // Add highlight style for target ad
+          isTargetAd && styles.targetAdCard, // Add highlight style for target ad
         ]}
         onPress={() => handleNotificationPress(item)}
         activeOpacity={0.8}
@@ -145,77 +161,85 @@ export default function NotificationsModal({
           </Text>
         </View> */}
 
-      {/* Shop Info Header */}
-      <View style={styles.adHeader}>
-        <View style={styles.shopInfo}>
-          <View style={styles.shopAvatar}>
-            <Ionicons name="storefront" size={24} color="#3B82F6" />
-          </View>
-          <View>
-            <Text style={styles.premiumShopName}>{item.advertisement?.shop?.name}</Text>
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-              <Text style={styles.verifiedText}>Verified Shop</Text>
+        {/* Shop Info Header */}
+        <View style={styles.adHeader}>
+          <View style={styles.shopInfo}>
+            <View style={styles.shopAvatar}>
+              <Ionicons name="storefront" size={24} color="#3B82F6" />
+            </View>
+            <View>
+              <Text style={styles.premiumShopName}>
+                {item.advertisement?.shop?.name}
+              </Text>
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                <Text style={styles.verifiedText}>Verified Shop</Text>
+              </View>
             </View>
           </View>
-        </View>
-        {/* Professional Ad Badge */}
-        <View style={[styles.adBadge, isTargetAd && styles.targetAdBadge]}>
-          <Ionicons name="megaphone" size={12} color="#FFFFFF" />
-          <Text style={styles.adBadgeText}>
-            {isTargetAd ? "📍 FROM NOTIFICATION" : "SPECIAL OFFER"}
-          </Text>
-        </View>
-        {/* Time Container in Corner */}
-        <View style={styles.timeContainer}>
-          <Ionicons name="time-outline" size={12} color="#6B7280" />
-          <Text style={styles.timeAgo}>{formatTimeAgo(item._creationTime)}</Text>
-        </View>
-      </View>
-
-      {/* Enhanced Ad Content */}
-      <View style={styles.adContentContainer}>
-        {/* Discount Badge */}
-        {item.advertisement?.hasDiscount && item.advertisement?.discountPercentage && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>
-              {item.advertisement.discountPercentage}% OFF
+          {/* Professional Ad Badge */}
+          <View style={[styles.adBadge, isTargetAd && styles.targetAdBadge]}>
+            <Ionicons name="megaphone" size={12} color="#FFFFFF" />
+            <Text style={styles.adBadgeText}>
+              {isTargetAd ? "📍 FROM NOTIFICATION" : "SPECIAL OFFER"}
             </Text>
           </View>
-        )}
-
-        {/* Message - Enhanced */}
-        <View style={styles.messageContainer}>
-          <Text style={styles.adDescriptionHighlighted} numberOfLines={3}>
-            {item.advertisement?.message}
-          </Text>
+          {/* Time Container in Corner */}
+          <View style={styles.timeContainer}>
+            <Ionicons name="time-outline" size={12} color="#6B7280" />
+            <Text style={styles.timeAgo}>
+              {formatTimeAgo(item._creationTime)}
+            </Text>
+          </View>
         </View>
 
-        {/* Enhanced Media Preview */}
-        {(item.advertisement?.imageIds?.length > 0 || item.advertisement?.videoIds?.length > 0) && (
-          <View style={styles.mediaPreview}>
-            <View style={styles.mediaRow}>
-              {item.advertisement?.imageIds?.length > 0 && (
-                <View style={styles.mediaChip}>
-                  <Ionicons name="images" size={14} color="#3B82F6" />
-                  <Text style={styles.mediaChipText}>
-                    {item.advertisement.imageIds.length} Photo{item.advertisement.imageIds.length > 1 ? 's' : ''}
-                  </Text>
-                </View>
-              )}
-              {item.advertisement?.videoIds?.length > 0 && (
-                <View style={styles.mediaChip}>
-                  <Ionicons name="videocam" size={14} color="#3B82F6" />
-                  <Text style={styles.mediaChipText}>
-                    {item.advertisement.videoIds.length} Video{item.advertisement.videoIds.length > 1 ? 's' : ''}
-                  </Text>
-                </View>
-              )}
-            </View>
+        {/* Enhanced Ad Content */}
+        <View style={styles.adContentContainer}>
+          {/* Discount Badge */}
+          {item.advertisement?.hasDiscount &&
+            item.advertisement?.discountPercentage && (
+              <View style={styles.discountBadge}>
+                <Text style={styles.discountText}>
+                  {item.advertisement.discountPercentage}% OFF
+                </Text>
+              </View>
+            )}
+
+          {/* Message - Enhanced */}
+          <View style={styles.messageContainer}>
+            <Text style={styles.adDescriptionHighlighted} numberOfLines={3}>
+              {item.advertisement?.message}
+            </Text>
           </View>
-        )}
-      </View>
-    </TouchableOpacity>
+
+          {/* Enhanced Media Preview */}
+          {(item.advertisement?.imageIds?.length > 0 ||
+            item.advertisement?.videoIds?.length > 0) && (
+            <View style={styles.mediaPreview}>
+              <View style={styles.mediaRow}>
+                {item.advertisement?.imageIds?.length > 0 && (
+                  <View style={styles.mediaChip}>
+                    <Ionicons name="images" size={14} color="#3B82F6" />
+                    <Text style={styles.mediaChipText}>
+                      {item.advertisement.imageIds.length} Photo
+                      {item.advertisement.imageIds.length > 1 ? "s" : ""}
+                    </Text>
+                  </View>
+                )}
+                {item.advertisement?.videoIds?.length > 0 && (
+                  <View style={styles.mediaChip}>
+                    <Ionicons name="videocam" size={14} color="#3B82F6" />
+                    <Text style={styles.mediaChipText}>
+                      {item.advertisement.videoIds.length} Video
+                      {item.advertisement.videoIds.length > 1 ? "s" : ""}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -227,11 +251,16 @@ export default function NotificationsModal({
     return (
       <ScrollView style={styles.detailContainer}>
         <View style={styles.detailHeader}>
-          <TouchableOpacity onPress={handleBackToList} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={handleBackToList}
+            style={styles.backButton}
+          >
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
           </TouchableOpacity>
           <View style={styles.detailHeaderInfo}>
-            <Text style={styles.detailShopName}>{advertisement?.shop?.name}</Text>
+            <Text style={styles.detailShopName}>
+              {advertisement?.shop?.name}
+            </Text>
             <Text style={styles.detailTimeAgo}>
               {formatTimeAgo(selectedNotification._creationTime)}
             </Text>
@@ -243,7 +272,9 @@ export default function NotificationsModal({
             <View style={styles.detailDiscountBadge}>
               <Text style={styles.detailDiscountText}>
                 {advertisement.discountPercentage}% OFF
-                {advertisement.discountText ? ` • ${advertisement.discountText}` : ''}
+                {advertisement.discountText
+                  ? ` • ${advertisement.discountText}`
+                  : ""}
               </Text>
             </View>
           )}
@@ -261,22 +292,24 @@ export default function NotificationsModal({
               <Text style={styles.mediaSectionTitle}>Photos</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.mediaContainer}>
-                  {advertisement.imageIds.map((imageId: Id<"_storage">, index: number) => (
-                    <TouchableOpacity
-                      key={index}
-                      onPress={() => handleImagePress(imageId)}
-                      style={styles.imageWrapper}
-                      activeOpacity={0.8}
-                    >
-                      <AdvertisementImage
-                        imageId={imageId}
-                        style={styles.notificationImage}
-                      />
-                      <View style={styles.imageOverlay}>
-                        <Ionicons name="expand" size={16} color="#FFFFFF" />
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                  {advertisement.imageIds.map(
+                    (imageId: string, index: number) => (
+                      <TouchableOpacity
+                        key={index}
+                        onPress={() => handleImagePress(imageId)}
+                        style={styles.imageWrapper}
+                        activeOpacity={0.8}
+                      >
+                        <AdvertisementImage
+                          imageUrl={imageId}
+                          style={styles.notificationImage}
+                        />
+                        <View style={styles.imageOverlay}>
+                          <Ionicons name="expand" size={16} color="#FFFFFF" />
+                        </View>
+                      </TouchableOpacity>
+                    ),
+                  )}
                 </View>
               </ScrollView>
             </View>
@@ -288,15 +321,24 @@ export default function NotificationsModal({
               <Text style={styles.mediaSectionTitle}>Videos</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.mediaContainer}>
-                  {advertisement.videoIds.map((videoId: Id<"_storage">, index: number) => (
-                    <VideoComponent key={index} videoId={videoId} index={index} />
-                  ))}
+                  {advertisement.videoIds.map(
+                    (videoId: string, index: number) => (
+                      <VideoComponent
+                        key={index}
+                        videoId={videoId}
+                        index={index}
+                      />
+                    ),
+                  )}
                 </View>
               </ScrollView>
             </View>
           )}
 
-          <TouchableOpacity style={styles.shopDetailsButton} onPress={handleViewShop}>
+          <TouchableOpacity
+            style={styles.shopDetailsButton}
+            onPress={handleViewShop}
+          >
             <Ionicons name="storefront" size={20} color="#FFFFFF" />
             <Text style={styles.shopDetailsButtonText}>Visit Shop</Text>
             <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
@@ -308,11 +350,6 @@ export default function NotificationsModal({
 
   // Video Player Modal Component
   const VideoPlayerModal = () => {
-    const videoUrl = useQuery(
-      api.files.getFileUrl, 
-      selectedVideoId ? { storageId: selectedVideoId } : "skip"
-    );
-
     const handleCloseVideo = () => {
       setVideoModalVisible(false);
       setSelectedVideoId(null);
@@ -330,35 +367,26 @@ export default function NotificationsModal({
         onRequestClose={handleCloseVideo}
       >
         <View style={styles.videoModalContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.videoModalCloseButton}
             onPress={handleCloseVideo}
           >
             <Ionicons name="close" size={30} color="#FFFFFF" />
           </TouchableOpacity>
-          
+
           <View style={styles.videoPlayerContainer}>
-            {videoUrl ? (
-              <Video
-                source={{ uri: videoUrl }}
-                style={styles.videoPlayer}
-                useNativeControls
-                resizeMode={ResizeMode.CONTAIN}
-                isLooping={false}
-                shouldPlay={true}
-              />
-            ) : (
-              <View style={styles.videoLoadingContainer}>
-                <Ionicons name="refresh" size={48} color="#FFFFFF" />
-                <Text style={styles.videoLoadingText}>Loading video...</Text>
-              </View>
-            )}
+            <Video
+              source={{ uri: selectedVideoId }}
+              style={styles.videoPlayer}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              isLooping={false}
+              shouldPlay={true}
+            />
           </View>
-          
+
           <View style={styles.videoPlayerHint}>
-            <Text style={styles.videoPlayerHintText}>
-              Tap outside to close
-            </Text>
+            <Text style={styles.videoPlayerHintText}>Tap outside to close</Text>
           </View>
         </View>
       </Modal>
@@ -374,22 +402,22 @@ export default function NotificationsModal({
       onRequestClose={() => setFullscreenImageId(null)}
     >
       <View style={styles.fullscreenContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.fullscreenCloseButton}
           onPress={() => setFullscreenImageId(null)}
         >
           <Ionicons name="close" size={30} color="#FFFFFF" />
         </TouchableOpacity>
-        
+
         {fullscreenImageId && (
           <View style={styles.fullscreenImageContainer}>
-            <ZoomableAdvertisementImage 
-              imageId={fullscreenImageId} 
+            <ZoomableAdvertisementImage
+              imageUrl={fullscreenImageId}
               style={styles.fullscreenImage}
             />
           </View>
         )}
-        
+
         {/* Zoom Hint */}
         <View style={styles.fullscreenHint}>
           <Text style={styles.fullscreenHintText}>
@@ -423,15 +451,24 @@ export default function NotificationsModal({
 
               {notifications === undefined ? (
                 <View style={styles.loadingContainer}>
-                  <Text style={styles.loadingText}>Loading notifications...</Text>
+                  <Text style={styles.loadingText}>
+                    Loading notifications...
+                  </Text>
                 </View>
               ) : notifications?.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="megaphone-outline" size={64} color="#9CA3AF" />
-                  <Text style={styles.emptyTitle}>No Special Offers Yet! 🛍️</Text>
+                  <Ionicons
+                    name="megaphone-outline"
+                    size={64}
+                    color="#9CA3AF"
+                  />
+                  <Text style={styles.emptyTitle}>
+                    No Special Offers Yet! 🛍️
+                  </Text>
                   <Text style={styles.emptySubtitle}>
-                    Keep checking back for exclusive deals and amazing offers from your favorite shops nearby! 
-                    You'll be the first to know about flash sales and special promotions.
+                    Keep checking back for exclusive deals and amazing offers
+                    from your favorite shops nearby! You'll be the first to know
+                    about flash sales and special promotions.
                   </Text>
                 </View>
               ) : (
@@ -444,7 +481,7 @@ export default function NotificationsModal({
                   showsVerticalScrollIndicator={false}
                   onScrollToIndexFailed={(info) => {
                     // Handle scroll failure gracefully
-                    console.log('Scroll to index failed:', info);
+                    console.log("Scroll to index failed:", info);
                     setTimeout(() => {
                       flatListRef.current?.scrollToIndex({
                         index: Math.min(info.index, notifications.length - 1),
@@ -463,7 +500,7 @@ export default function NotificationsModal({
 
       {/* Fullscreen Image Modal */}
       <FullscreenImageModal />
-      
+
       {/* Video Player Modal */}
       <VideoPlayerModal />
     </>
@@ -679,7 +716,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
-  
+
   // Image overlay styles
   imageOverlay: {
     position: "absolute",
@@ -689,7 +726,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 4,
   },
-  
+
   // Enhanced Fullscreen Image Modal Styles
   fullscreenContainer: {
     flex: 1,
@@ -714,7 +751,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    minHeight: Dimensions.get('window').height,
+    minHeight: Dimensions.get("window").height,
   },
   fullscreenImageContainer: {
     flex: 1,
@@ -723,8 +760,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   fullscreenImage: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height * 0.8,
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").height * 0.8,
     maxWidth: "100%",
     maxHeight: "100%",
     borderRadius: 8,
@@ -746,7 +783,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     textAlign: "center",
   },
-  
+
   // Video Player Modal Styles
   videoModalContainer: {
     flex: 1,
@@ -902,7 +939,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 6,
     minWidth: 80,
-  marginTop: 10, // Added gap from the special offer badge
+    marginTop: 10, // Added gap from the special offer badge
   },
   viewMoreButton: {
     flexDirection: "row",
@@ -1030,7 +1067,7 @@ const styles = StyleSheet.create({
   shopButtonText: {
     flex: 1,
   },
-  
+
   // New Enhanced Styles
   timeContainer: {
     position: "absolute",

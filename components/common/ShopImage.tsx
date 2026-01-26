@@ -1,27 +1,29 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { useQuery } from 'convex/react';
 import { Image } from 'expo-image';
-import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
+import { Ionicons } from '@expo/vector-icons';
 
 interface ShopImageProps {
-  shopImageId: Id<"_storage">;
+  imageUrl?: string; // Now receives Cloudinary URL directly
   style?: ViewStyle;
   contentFit?: 'contain' | 'cover' | 'fill' | 'scale-down';
   showOriginalSize?: boolean;
 }
 
 export default function ShopImage({ 
-  shopImageId, 
+  imageUrl,
   style, 
   contentFit = 'cover',
   showOriginalSize = false 
 }: ShopImageProps) {
-  const shopImageUrl = useQuery(api.shops.getShopImage, { imageId: shopImageId });
-
-  if (!shopImageUrl) {
-    return null;
+  
+  // If no image URL, show placeholder
+  if (!imageUrl) {
+    return (
+      <View style={[styles.shopImageContainer, style, styles.placeholderContainer]}>
+        <Ionicons name="storefront-outline" size={32} color="#9CA3AF" />
+      </View>
+    );
   }
 
   const containerStyle = showOriginalSize || style 
@@ -33,11 +35,13 @@ export default function ShopImage({
   return (
     <View style={containerStyle}>
       <Image
-        source={{ uri: shopImageUrl }}
+        source={{ uri: imageUrl }}
         style={styles.shopImage}
         contentFit={imageContentFit}
         transition={300}
         priority="high"
+        // Optional: Add Cloudinary transformations via URL
+        // For example: imageUrl + '?w=800&q=auto&f=auto'
       />
     </View>
   );
@@ -61,5 +65,10 @@ const styles = StyleSheet.create({
   shopImage: {
     width: "100%",
     height: "100%",
+  },
+  placeholderContainer: {
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

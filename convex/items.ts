@@ -17,8 +17,8 @@ export const createItem = mutation({
     price: v.optional(v.number()),
     priceDescription: v.optional(v.string()),
     category: v.optional(v.string()),
-    imageId: v.optional(v.id("_storage")),
-    imageIds: v.optional(v.array(v.id("_storage"))),
+    imageId: v.optional(v.string()),
+    imageIds: v.optional(v.array(v.string())),
     offer: v.optional(v.string()),
     barcode: v.optional(v.string()),
     brand: v.optional(v.string()),
@@ -77,8 +77,8 @@ export const updateItem = mutation({
     price: v.optional(v.number()),
     priceDescription: v.optional(v.string()),
     category: v.optional(v.string()),
-    imageId: v.optional(v.id("_storage")),
-    imageIds: v.optional(v.array(v.id("_storage"))),
+    imageId: v.optional(v.string()),
+    imageIds: v.optional(v.array(v.string())),
     offer: v.optional(v.string()),
     barcode: v.optional(v.string()),
     brand: v.optional(v.string()),
@@ -216,22 +216,9 @@ export const getItemByBarcode = query({
   },
 });
 
-export const getItemImage = query({
-  args: { imageId: v.id("_storage") },
-  handler: async (ctx, args) => {
-    return await ctx.storage.getUrl(args.imageId);
-  },
-});
-
-export const getItemImages = query({
-  args: { imageIds: v.array(v.id("_storage")) },
-  handler: async (ctx, args) => {
-    const urls = await Promise.all(
-      args.imageIds.map(async (imageId) => {
-        const url = await ctx.storage.getUrl(imageId);
-        return url;
-      })
-    );
-    return urls.filter((url): url is string => url !== null);
+export const getAllItems = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("items").collect();
   },
 });

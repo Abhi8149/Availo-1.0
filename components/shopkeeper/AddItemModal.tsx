@@ -18,10 +18,9 @@ import { useMutation, useQuery, useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import BarcodeScanner from "../common/BarcodeScanner";
-import { ProductApiService, ProductData } from "../../services/productApiService";
+import {ProductData} from "../../services/productApiService";
 import { FlexibleImagePicker } from "../common/FlexibleImagePicker";
-import { ImageOptimizer } from "../../utils/imageOptimizer";
-
+import { CloudinaryUpload } from '../../utils/cloudinaryUpload';
 interface AddItemModalProps {
   visible: boolean;
   onClose: () => void;
@@ -61,9 +60,9 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
   const [customCategory, setCustomCategory] = useState("");
   const [inStock, setInStock] = useState(true);
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [imageId, setImageId] = useState<Id<"_storage"> | null>(null);
+  const [imageId, setImageId] = useState<string | null>(null);
   const [imageUris, setImageUris] = useState<string[]>([]);
-  const [imageIds, setImageIds] = useState<Id<"_storage">[]>([]);
+  const [imageIds, setImageIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSelectingSuggestion, setIsSelectingSuggestion] = useState(false);
@@ -79,22 +78,7 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
 
   const createItem = useMutation(api.items.createItem);
   const updateItem = useMutation(api.items.updateItem);
-  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
-  const saveImageId = useMutation(api.files.saveImageId);
   const convex = useConvex();
-
-  // Always call the hook, but only use the result if imageId exists
-  const existingImageUrl = useQuery(
-    api.items.getItemImage, 
-    editingItem?.imageId ? { imageId: editingItem.imageId } : "skip"
-  );
-  
-  const existingImageUrls = useQuery(
-    api.items.getItemImages,
-    editingItem?.imageIds && editingItem.imageIds.length > 0
-      ? { imageIds: editingItem.imageIds }
-      : "skip"
-  );
 
   const itemSuggestions = useQuery(api.items.searchItems, { searchTerm: itemName.length > 0 ? itemName : undefined }) || [];
 
@@ -119,7 +103,7 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
     } else {
       resetForm();
     }
-  }, [editingItem, existingImageUrl]);
+  }, [editingItem]);
 
   const resetForm = () => {
     setItemName("");
@@ -226,113 +210,90 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
     setImageIds(imageIds.filter((_, i) => i !== index));
   };
 
-  const uploadImage = async (uri: string): Promise<Id<"_storage"> | null> => {
-    try {
-      // Optimize image before uploading
-      console.log('Optimizing item image...');
-      const optimizedUri = await ImageOptimizer.optimizeItemImage(uri);
-      
-      const uploadUrl = await generateUploadUrl();
-      
-      const response = await fetch(optimizedUri);
-      const blob = await response.blob();
-      
-      console.log(`Uploading optimized image (${(blob.size / 1024).toFixed(2)} KB)...`);
-      
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": blob.type },
-        body: blob,
+const uploadImage = async (uri: string): Promise<string | null> => {
+  return await CloudinaryUpload.uploadImage(uri, 'items', 'item');
+};
+
+const handleSubmit = async () => {
+  if (!itemName.trim()) {
+    Alert.alert("Error", "Please enter item name");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    // finalImageIds now stores Cloudinary URLs (strings) instead of storage IDs
+    let finalImageUrls = [...imageIds]; // imageIds already contains existing Cloudinary URLs
+
+    // Upload new images to Cloudinary
+    if (imageUris.length > 0) {
+      console.log(`Uploading ${imageUris.length} images to Cloudinary...`);
+      for (const uri of imageUris) {
+        const cloudinaryUrl = await uploadImage(uri); // Returns Cloudinary URL
+        if (cloudinaryUrl) {
+          finalImageUrls.push(cloudinaryUrl);
+        }
+      }
+      console.log(`✓ Successfully uploaded ${imageUris.length} images to Cloudinary`);
+    }
+
+    const finalCategory = category === "other" ? customCategory.trim() : category;
+    const itemData: any = {
+      name: itemName.trim(),
+      description: description.trim() || undefined,
+      price: price ? parseFloat(price) : undefined,
+      priceDescription: priceDescription.trim() || undefined,
+      category: finalCategory || undefined,
+      offer: offer.trim() || undefined,
+      barcode: barcode.trim() || undefined,
+      brand: brand.trim() || undefined,
+      inStock,
+    };
+    
+    // Add imageIds (Cloudinary URLs) if there are any
+    if (finalImageUrls.length > 0) {
+      itemData.imageIds = finalImageUrls; // Array of Cloudinary URLs
+      itemData.imageId = finalImageUrls[0]; // First image as main image
+    }
+
+    if (editingItem) {
+      await updateItem({
+        itemId: editingItem._id,
+        ...itemData,
       });
-
-      if (!uploadResponse.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const { storageId } = await uploadResponse.json();
-      console.log('Image uploaded successfully');
-      return storageId;
-    } catch (error) {
-      console.error("Image upload error:", error);
-      return null;
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!itemName.trim()) {
-      Alert.alert("Error", "Please enter item name");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      let finalImageIds = [...imageIds];
-
-      // Upload new images if selected
-      if (imageUris.length > 0) {
-        for (const uri of imageUris) {
-          const uploadedId = await uploadImage(uri);
-          if (uploadedId) {
-            finalImageIds.push(uploadedId);
-          }
-        }
-      }
-
-      const finalCategory = category === "other" ? customCategory.trim() : category;
-      const itemData: any = {
-        name: itemName.trim(),
-        description: description.trim() || undefined,
-        price: price ? parseFloat(price) : undefined,
-        priceDescription: priceDescription.trim() || undefined,
-        category: finalCategory || undefined,
-        offer: offer.trim() || undefined,
-        barcode: barcode.trim() || undefined,
-        brand: brand.trim() || undefined,
-        inStock,
-      };
+      Alert.alert("Success", "Item updated successfully!");
+    } else {
+      await createItem({
+        shopId,
+        ...itemData,
+      });
       
-      // Add imageIds if there are any
-      if (finalImageIds.length > 0) {
-        itemData.imageIds = finalImageIds;
-      }
-
-      if (editingItem) {
-        await updateItem({
-          itemId: editingItem._id,
-          ...itemData,
-        });
-        Alert.alert("Success", "Item updated successfully!");
-      } else {
-        await createItem({
-          shopId,
-          ...itemData,
-        });
+      // Special success message for manual barcode entries
+      if (isManualEntry && barcode) {
+        Alert.alert(
+          "Success", 
+          `Item added successfully!\n\nThis product has been saved with barcode ${barcode}. Next time you scan this barcode, the details will be auto-filled.`,
+          [{ text: "Great!", onPress: () => {} }]
+        );
         
-        // Special success message for manual barcode entries
-        if (isManualEntry && barcode) {
-          Alert.alert(
-            "Success", 
-            `Item added successfully!\n\nThis product has been saved with barcode ${barcode}. Next time you scan this barcode, the details will be auto-filled.`,
-            [{ text: "Great!", onPress: () => {} }]
-          );
-          
-          // Show toast on Android
-          if (Platform.OS === 'android') {
-            ToastAndroid.show('Product saved for future barcode scans!', ToastAndroid.LONG);
-          }
-        } else {
-          Alert.alert("Success", "Item added successfully!");
+        // Show toast on Android
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Product saved for future barcode scans!', ToastAndroid.LONG);
         }
+      } else {
+        Alert.alert("Success", "Item added successfully!");
       }
-
-      resetForm();
-      onClose();
-    } catch (error) {
-      Alert.alert("Error", "Failed to save item. Please try again.");
-    } finally {
-      setLoading(false);
     }
-  };
+
+    resetForm();
+    onClose();
+  } catch (error) {
+    console.error("Error saving item:", error);
+    Alert.alert("Error", "Failed to save item. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleClose = () => {
     if (!loading) {
@@ -341,7 +302,7 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
     }
   };
 
-  const displayImage = imageUri || existingImageUrl;
+  const displayImage = imageUri || (editingItem?.imageId);
 
   return (
     <Modal
@@ -376,9 +337,9 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
               </View>
               
               {/* Display existing images from server */}
-              {existingImageUrls && existingImageUrls.length > 0 && (
+              {editingItem?.imageIds && editingItem.imageIds.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageList}>
-                  {existingImageUrls.map((url, index) => (
+                  {(editingItem.imageIds as string[]).map((url: string, index: number) => (
                     <View key={`existing-${index}`} style={styles.imageItemContainer}>
                       <Image
                         source={{ uri: url }}

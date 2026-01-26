@@ -4,7 +4,7 @@ export interface CartItem {
   _id: Id<"items">;
   name: string;
   price?: number;
-  imageId?: Id<"_storage">;
+  imageId?: string;
   shopId?: Id<"shops">;
   shopName?: string;
   quantity: number;
@@ -29,8 +29,8 @@ export interface Shop {
   isOpen: boolean;
   lastUpdated: number;
   mobileNumber?: string;
-  shopImageId?: Id<"_storage">;
-  shopImageIds?: Id<"_storage">[];
+  shopImageId?: string;
+  shopImageIds?: string[];
   estimatedTime?: {
     hours: number;
     minutes: number;

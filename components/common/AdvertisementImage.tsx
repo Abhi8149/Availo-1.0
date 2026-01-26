@@ -1,26 +1,23 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { useQuery } from 'convex/react';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
 
 interface AdvertisementImageProps {
-  imageId: Id<"_storage">;
+  imageUrl: string; // Now receives Cloudinary URL directly
   style?: ViewStyle;
   contentFit?: 'contain' | 'cover' | 'fill' | 'scale-down';
   showOriginalSize?: boolean;
 }
 
 export default function AdvertisementImage({ 
-  imageId, 
+  imageUrl, 
   style, 
   contentFit = 'cover',
   showOriginalSize = false 
 }: AdvertisementImageProps) {
-  const imageUrl = useQuery(api.files.getFileUrl, { storageId: imageId });
-
+  
+  // If no image URL, show placeholder
   if (!imageUrl) {
     return (
       <View style={[styles.placeholderImage, style]}>
@@ -43,6 +40,8 @@ export default function AdvertisementImage({
         contentFit={imageContentFit}
         transition={300}
         priority="high"
+        // Optional: Add Cloudinary transformations for ads
+        // For optimized display: imageUrl + '?w_800,h_800,c_fill,q_auto,f_auto'
       />
     </View>
   );

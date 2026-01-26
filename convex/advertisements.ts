@@ -8,8 +8,8 @@ export const createAdvertisement = mutation({
     shopId: v.id("shops"),
     shopOwnerId: v.id("users"),
     message: v.string(),
-    imageIds: v.optional(v.array(v.id("_storage"))),
-    videoIds: v.optional(v.array(v.id("_storage"))),
+    imageIds: v.optional(v.array(v.string())),
+    videoIds: v.optional(v.array(v.string())),
     hasDiscount: v.optional(v.boolean()),
     discountPercentage: v.optional(v.number()),
     discountText: v.optional(v.string()),
@@ -60,8 +60,8 @@ export const updateAdvertisement = mutation({
   args: {
     advertisementId: v.id("advertisements"),
     message: v.optional(v.string()),
-    imageIds: v.optional(v.array(v.id("_storage"))),
-    videoIds: v.optional(v.array(v.id("_storage"))),
+    imageIds: v.optional(v.array(v.string())),
+    videoIds: v.optional(v.array(v.string())),
     hasDiscount: v.optional(v.boolean()),
     discountPercentage: v.optional(v.number()),
     discountText: v.optional(v.string()),
@@ -622,15 +622,11 @@ export const sendPushNotificationToNearbyUsers = action({
         discountText: advertisement.discountText,
 
       }
-      // Get the first image URL if advertisement has images
+      // Get the first image URL if advertisement has images (already Cloudinary URL)
       let imageUrl = null;
       if (advertisement.imageIds && advertisement.imageIds.length > 0) {
-        try {
-          imageUrl = await ctx.storage.getUrl(advertisement.imageIds[0]);
-          console.log('🖼️ Advertisement image URL:', imageUrl);
-        } catch (error) {
-          console.error('❌ Error getting image URL:', error);
-        }
+        imageUrl = advertisement.imageIds[0]; // Direct Cloudinary URL
+        console.log('🖼️ Advertisement image URL:', imageUrl);
       }
 
       // Base notification payload
@@ -779,5 +775,12 @@ export const getAdvertisementById = query({
   args: { advertisementId: v.id("advertisements") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.advertisementId);
+  },
+});
+
+export const getAllAdvertisements= query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("advertisements").collect();
   },
 });

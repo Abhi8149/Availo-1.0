@@ -23,7 +23,7 @@ import { useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import ZoomableImage from "../common/ZoomableImage";
-
+import { CloudinaryUpload } from '../../utils/cloudinaryUpload';
 interface AdvertisementModalProps {
   visible: boolean;
   onClose: () => void;
@@ -44,8 +44,8 @@ export default function AdvertisementModal({
   const [message, setMessage] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
-  const [imageIds, setImageIds] = useState<Id<"_storage">[]>([]);
-  const [videoIds, setVideoIds] = useState<Id<"_storage">[]>([]);
+  const [imageIds, setImageIds] = useState<string[]>([]);
+  const [videoIds, setVideoIds] = useState<string[]>([]);
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [existingVideoUrls, setExistingVideoUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,78 +60,31 @@ export default function AdvertisementModal({
   const deleteAdvertisement = useMutation(api.advertisements.deleteAdvertisement);
   const sendNotifications = useMutation(api.advertisements.sendNotificationsToNearbyUsers);
   const sendPushNotifications = useAction(api.advertisements.sendPushNotificationToNearbyUsers);
-  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
-  const convex = useConvex();
 
-  // Function to load existing media URLs using Convex
-  const loadExistingMedia = async () => {
-    if (!imageIds.length && !videoIds.length) {
-      setExistingImageUrls([]);
-      setExistingVideoUrls([]);
-      return;
-    }
 
-    try {
-      // Load image URLs
-      const imageUrlPromises = imageIds.map(async (id) => {
-        try {
-          const url = await convex.query(api.files.getFileUrl, { storageId: id });
-          return url;
-        } catch (error) {
-          console.error('Error loading image URL:', error);
-          return null;
-        }
-      });
-
-      // Load video URLs
-      const videoUrlPromises = videoIds.map(async (id) => {
-        try {
-          const url = await convex.query(api.files.getFileUrl, { storageId: id });
-          return url;
-        } catch (error) {
-          console.error('Error loading video URL:', error);
-          return null;
-        }
-      });
-
-      const imageUrls = await Promise.all(imageUrlPromises);
-      const videoUrls = await Promise.all(videoUrlPromises);
-
-      setExistingImageUrls(imageUrls.filter(url => url !== null));
-      setExistingVideoUrls(videoUrls.filter(url => url !== null));
-    } catch (error) {
-      console.error('Error loading existing media:', error);
-      setExistingImageUrls([]);
-      setExistingVideoUrls([]);
-    }
-  };
-
-  // Effect to load existing media when imageIds or videoIds change
-  useEffect(() => {
-    if (imageIds.length > 0 || videoIds.length > 0) {
-      loadExistingMedia();
-    } else {
-      setExistingImageUrls([]);
-      setExistingVideoUrls([]);
-    }
-  }, [imageIds, videoIds]);
-
-  useEffect(() => {
-    if (editingAdvertisement) {
-      setMessage(editingAdvertisement.message);
-      // Reset new media arrays
-      setImages([]);
-      setVideos([]);
-      setImageIds(editingAdvertisement.imageIds || []);
-      setVideoIds(editingAdvertisement.videoIds || []);
-      setHasDiscount(editingAdvertisement.hasDiscount || false);
-      setDiscountPercentage(editingAdvertisement.discountPercentage ? editingAdvertisement.discountPercentage.toString() : "");
-      setDiscountText(editingAdvertisement.discountText || "");
-      console.log('Editing Advertisement:', editingAdvertisement);
-    } else {
-      resetForm();
-    }
-  }, [editingAdvertisement, visible]);
+useEffect(() => {
+  if (editingAdvertisement) {
+    setMessage(editingAdvertisement.message);
+    // Reset new media arrays
+    setImages([]);
+    setVideos([]);
+    
+    // imageIds and videoIds now contain Cloudinary URLs directly
+    const imageUrls = editingAdvertisement.imageIds || [];
+    const videoUrls = editingAdvertisement.videoIds || [];
+    
+    setImageIds(imageUrls);
+    setVideoIds(videoUrls);
+    setExistingImageUrls(imageUrls); // Direct assignment - no query needed
+    setExistingVideoUrls(videoUrls); // Direct assignment - no query needed
+    
+    setHasDiscount(editingAdvertisement.hasDiscount || false);
+    setDiscountPercentage(editingAdvertisement.discountPercentage ? editingAdvertisement.discountPercentage.toString() : "");
+    setDiscountText(editingAdvertisement.discountText || "");
+  } else {
+    resetForm();
+  }
+}, [editingAdvertisement, visible]);
 
   const resetForm = () => {
     setMessage("");
@@ -346,30 +299,13 @@ export default function AdvertisementModal({
     setExistingVideoUrls(prev => prev.filter((_, i) => i !== index));
   };
 
-  const uploadFile = async (uri: string): Promise<Id<"_storage"> | null> => {
-    try {
-      const uploadUrl = await generateUploadUrl();
-      
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": blob.type },
-        body: blob,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const { storageId } = await uploadResponse.json();
-      return storageId;
-    } catch (error) {
-      console.error("File upload error:", error);
-      return null;
-    }
-  };
+const uploadFile = async (uri: string, type: 'image' | 'video'): Promise<string | null> => {
+  if (type === 'image') {
+    return await CloudinaryUpload.uploadImage(uri, 'advertisements', 'advertisement');
+  } else {
+    return await CloudinaryUpload.uploadVideo(uri, 'advertisements');
+  }
+};
 
   const handleDeleteAdvertisement = async () => {
     if (!editingAdvertisement) return;
@@ -424,113 +360,133 @@ export default function AdvertisementModal({
     }
   };
 
-  const saveAdvertisementData = async () => {
-    // Validate discount fields if discount is enabled
-    if (hasDiscount && (!discountPercentage.trim() && !discountText.trim())) {
-      Alert.alert(
-        "Please enter the discount", 
-        "You have enabled discount option. Please enter either discount percentage or discount text, or disable the discount option to proceed without discount."
-      );
-      return;
+const saveAdvertisementData = async () => {
+  // Validate discount fields if discount is enabled
+  if (hasDiscount && (!discountPercentage.trim() && !discountText.trim())) {
+    Alert.alert(
+      "Please enter the discount", 
+      "You have enabled discount option. Please enter either discount percentage or discount text, or disable the discount option to proceed without discount."
+    );
+    return;
+  }
+
+  setLoading(true);
+  try {
+    // Upload new images to Cloudinary
+    const uploadedImageUrls: string[] = [];
+    const failedImageUploads:number[]=[];
+
+    if (images && images.length > 0) {
+      console.log(`Uploading ${images.length} images to Cloudinary...`);
+      for (let i=0; i<images.length; i++) {
+        const imageUri=images[i];
+        const cloudinaryUrl = await uploadFile(imageUri, 'image'); // Returns Cloudinary URL
+        if (cloudinaryUrl) uploadedImageUrls.push(cloudinaryUrl);
+        else{
+          failedImageUploads.push(i+1);
+        }
+      }
+      if (failedImageUploads.length > 0) {
+        Alert.alert(
+          "Upload Warning",
+          `${failedImageUploads.length} image(s) failed to upload and were skipped.`
+        );
+      }
     }
 
-    setLoading(true);
-    try {
-      // Upload new images
-      const uploadedImageIds: Id<"_storage">[] = [];
-      for (const imageUri of (images || [])) {
-        const imageId = await uploadFile(imageUri);
-        if (imageId) uploadedImageIds.push(imageId);
+    // Upload new videos to Cloudinary
+    const uploadedVideoUrls: string[] = [];
+    if (videos && videos.length > 0) {
+      console.log(`Uploading ${videos.length} videos to Cloudinary...`);
+      for (const videoUri of videos) {
+        const cloudinaryUrl = await uploadFile(videoUri, 'video'); // Returns Cloudinary URL
+        if (cloudinaryUrl) uploadedVideoUrls.push(cloudinaryUrl);
       }
+      console.log(`✓ Successfully uploaded ${uploadedVideoUrls.length} videos`);
+    }
 
-      // Upload new videos
-      const uploadedVideoIds: Id<"_storage">[] = [];
-      for (const videoUri of (videos || [])) {
-        const videoId = await uploadFile(videoUri);
-        if (videoId) uploadedVideoIds.push(videoId);
-      }
+    // Combine existing URLs (after removals) with new uploaded URLs
+    const finalImageUrls = [...(imageIds || []), ...uploadedImageUrls];
+    const finalVideoUrls = [...(videoIds || []), ...uploadedVideoUrls];
 
-      // Combine existing IDs (after removals) with new uploaded IDs
-      const finalImageIds = [...(imageIds || []), ...uploadedImageIds];
-      const finalVideoIds = [...(videoIds || []), ...uploadedVideoIds];
+    if (editingAdvertisement) {
+      // Update existing advertisement
+      await updateAdvertisement({
+        advertisementId: editingAdvertisement._id,
+        message: message.trim(),
+        imageIds: finalImageUrls.length > 0 ? finalImageUrls : undefined,
+        videoIds: finalVideoUrls.length > 0 ? finalVideoUrls : undefined,
+        hasDiscount: hasDiscount,
+        discountPercentage: hasDiscount && discountPercentage ? parseInt(discountPercentage) : undefined,
+        discountText: hasDiscount && discountText.trim() ? discountText.trim() : undefined,
+      });
+      Alert.alert("Success", "Advertisement updated successfully!");
+      resetForm();
+      onClose();
+    } else {
+      // Create new advertisement
+      const advertisementId = await createAdvertisement({
+        shopId,
+        shopOwnerId,
+        message: message.trim(),
+        imageIds: finalImageUrls.length > 0 ? finalImageUrls : undefined,
+        videoIds: finalVideoUrls.length > 0 ? finalVideoUrls : undefined,
+        hasDiscount: hasDiscount,
+        discountPercentage: hasDiscount && discountPercentage ? parseInt(discountPercentage) : undefined,
+        discountText: hasDiscount && discountText.trim() ? discountText.trim() : undefined,
+      });
 
-      if (editingAdvertisement) {
-        // Update existing advertisement
-        await updateAdvertisement({
-          advertisementId: editingAdvertisement._id,
-          message: message.trim(),
-          imageIds: finalImageIds.length > 0 ? finalImageIds : undefined,
-          videoIds: finalVideoIds.length > 0 ? finalVideoIds : undefined,
-          hasDiscount: hasDiscount,
-          discountPercentage: hasDiscount && discountPercentage ? parseInt(discountPercentage) : undefined,
-          discountText: hasDiscount && discountText.trim() ? discountText.trim() : undefined,
-        });
-        Alert.alert("Success", "Advertisement updated successfully!");
-        resetForm();
-        onClose();
-      } else {
-        // Create new advertisement
-        const advertisementId = await createAdvertisement({
+      // Send push notifications to nearby users (5km radius)
+      try {
+        const pushResult = await sendPushNotifications({
+          advertisementId,
           shopId,
-          shopOwnerId,
-          message: message.trim(),
-          imageIds: finalImageIds.length > 0 ? finalImageIds : undefined,
-          videoIds: finalVideoIds.length > 0 ? finalVideoIds : undefined,
-          hasDiscount: hasDiscount,
-          discountPercentage: hasDiscount && discountPercentage ? parseInt(discountPercentage) : undefined,
-          discountText: hasDiscount && discountText.trim() ? discountText.trim() : undefined,
+          shopLat: shopLocation.lat,
+          shopLng: shopLocation.lng,
+          radiusKm: 5,
         });
 
-        // Send push notifications to nearby users (5km radius)
-        try {
-          const pushResult = await sendPushNotifications({
-            advertisementId,
-            shopId,
-            shopLat: shopLocation.lat,
-            shopLng: shopLocation.lng,
-            radiusKm: 5,
-          });
-
-          if (pushResult.success) {
-            Alert.alert(
-              "Success!", 
-              "Advertisement send to users within 5km"
-            );
-          } else {
-            Alert.alert(
-              "Partial Success", 
-              `Advertisement created but failed to send push notifications: ${pushResult.error}`
-            );
-          }
-        } catch (error) {
-          console.error('Push notification error:', error);
+        if (pushResult.success) {
+          Alert.alert(
+            "Success!", 
+            "Advertisement sent to users"
+          );
+        } else {
           Alert.alert(
             "Partial Success", 
-            "Advertisement created but failed to send push notifications. Please check your internet connection."
+            `Advertisement created but failed to send push notifications: ${pushResult.error}`
           );
         }
-
-        // Also send in-app notifications (existing system)
-        try {
-          await sendNotifications({
-            advertisementId,
-            shopLat: shopLocation.lat,
-            shopLng: shopLocation.lng,
-            radiusKm: 5,
-          });
-        } catch (error) {
-          console.error('In-app notification error:', error);
-        }
-
-        resetForm();
-        onClose();
+      } catch (error) {
+        console.error('Push notification error:', error);
+        Alert.alert(
+          "Partial Success", 
+          "Advertisement created but failed to send push notifications. Please check your internet connection."
+        );
       }
-    } catch (error) {
-      Alert.alert("Error", "Failed to save advertisement");
-    } finally {
-      setLoading(false);
+
+      // Also send in-app notifications (existing system)
+      try {
+        await sendNotifications({
+          advertisementId,
+          shopLat: shopLocation.lat,
+          shopLng: shopLocation.lng,
+          radiusKm: 5,
+        });
+      } catch (error) {
+        console.error('In-app notification error:', error);
+      }
+
+      resetForm();
+      onClose();
     }
-  };
+  } catch (error) {
+    console.error("Error saving advertisement:", error);
+    Alert.alert("Error", "Failed to save advertisement");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleNotifyLocals = () => {
     // For editing mode - just show terms for re-notification

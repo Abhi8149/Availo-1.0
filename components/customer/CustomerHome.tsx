@@ -1272,7 +1272,7 @@ export default function CustomerHome({ user, onLogout, onSwitchToShopkeeper }: C
                   <View style={styles.itemHeader}>
                     <View style={styles.itemImageContainer}>
                       {item.imageId ? (
-                        <ItemImage imageId={item.imageId} />
+                        <ItemImage imageUrl={item.imageId} />
                       ) : (
                         <View style={styles.placeholderImage}>
                           <Ionicons name="cube-outline" size={20} color="#9CA3AF" />

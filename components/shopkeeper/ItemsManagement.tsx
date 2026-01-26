@@ -102,7 +102,7 @@ export default function ItemsManagement({ shopId, shopName, shopOwnerId, shopLoc
         <View style={styles.itemHeader}>
           <View style={styles.itemImageContainer}>
             {item.imageId ? (
-              <ItemImage imageId={item.imageId} />
+              <ItemImage imageUrl={item.imageId} />
             ) : (
               <View style={styles.placeholderImage}>
                 <Ionicons name="image-outline" size={24} color="#9CA3AF" />

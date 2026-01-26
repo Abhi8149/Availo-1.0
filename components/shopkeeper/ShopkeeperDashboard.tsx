@@ -265,7 +265,7 @@ function timeStringToMinutes(timeString: string): number {
                 >
                   {/* Shop Image */}
                   {shop.shopImageId && (
-                    <ShopImage shopImageId={shop.shopImageId} />
+                    <ShopImage imageUrl={shop.shopImageId} />
                   )}
 
                   <View style={styles.shopHeader}>

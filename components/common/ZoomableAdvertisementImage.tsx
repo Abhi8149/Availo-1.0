@@ -1,18 +1,15 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
 import ZoomableImage from './ZoomableImage';
 
 interface ZoomableAdvertisementImageProps {
-  imageId: Id<"_storage">;
+  imageUrl: string; // Now receives Cloudinary URL directly
   style?: any;
 }
 
-export default function ZoomableAdvertisementImage({ imageId, style }: ZoomableAdvertisementImageProps) {
-  const imageUrl = useQuery(api.files.getFileUrl, { storageId: imageId });
-
+export default function ZoomableAdvertisementImage({ imageUrl, style }: ZoomableAdvertisementImageProps) {
+  
+  // Show loading state while image URL is being passed (though it should be immediate)
   if (!imageUrl) {
     return (
       <View style={[styles.loading, style]}>

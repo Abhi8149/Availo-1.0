@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 
 export const createShop = mutation({
   args: {
@@ -13,8 +14,8 @@ export const createShop = mutation({
     }),
     isOpen: v.boolean(),
     mobileNumber:v.string(),
-    shopImageId: v.optional(v.id("_storage")), // Keep for backward compatibility
-    shopImageIds: v.optional(v.array(v.id("_storage"))), // Multiple images
+    shopImageId: v.optional(v.string()), // Keep for backward compatibility
+    shopImageIds: v.optional(v.array(v.string())), // Multiple images
     estimatedTime: v.optional(v.object({
       hours: v.number(),
       minutes: v.number(),
@@ -97,12 +98,12 @@ export const updateShop = mutation({
       address: v.optional(v.string()),
     })),
     mobileNumber: v.optional(v.string()),
-    shopImageId: v.optional(v.id("_storage")), // Keep for backward compatibility
-    shopImageIds: v.optional(v.array(v.id("_storage"))), // Multiple images
-    businessHours: v.object({
+    shopImageId: v.optional(v.string()), // Keep for backward compatibility
+    shopImageIds: v.optional(v.array(v.string())), // Multiple images
+    businessHours: v.optional(v.object({
       openTime: v.string(), // Format: "09:00"
       closeTime: v.string(), // Format: "18:00"
-    }),
+    })),
     hasDelivery: v.optional(v.boolean()),
     deliveryRange: v.optional(v.number()),
   },
@@ -157,6 +158,7 @@ export const searchShops = query({
     searchTerm: v.optional(v.string()),
     category: v.optional(v.string()),
     isOpen: v.optional(v.boolean()),
+    paginationOpts: v.optional(paginationOptsValidator),
   },
   handler: async (ctx, args) => {
     let shops = await ctx.db.query("shops").collect();
@@ -180,15 +182,9 @@ export const searchShops = query({
         (shop.location.address && shop.location.address.toLowerCase().includes(searchLower))
       );
     }
+    
 
     return shops;
-  },
-});
-
-export const getShopImage = query({
-  args: { imageId: v.id("_storage") },
-  handler: async (ctx, args) => {
-    return await ctx.storage.getUrl(args.imageId);
   },
 });
 
@@ -226,5 +222,18 @@ export const getShop = query({
   args: { shopId: v.id("shops") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.shopId);
+  },
+});
+export const getAllItems = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("items").collect();
+  },
+});
+
+export const getAllAdvertisements = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("advertisements").collect();
   },
 });

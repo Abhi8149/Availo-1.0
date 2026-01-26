@@ -20,11 +20,6 @@ interface SimpleAdminPanelProps {
 }
 
 export default function SimpleAdminPanel({ visible, onClose }: SimpleAdminPanelProps) {
-  const [selectedShop, setSelectedShop] = useState<any>(null);
-  const [verificationNotes, setVerificationNotes] = useState('');
-  const [showNotesModal, setShowNotesModal] = useState(false);
-  const [actionType, setActionType] = useState<'verify' | 'unverify'>('verify');
-
   // Queries and mutations
   const shopsResult = useQuery(api.admin.getAllShopsForVerification, {});
   const stats = useQuery(api.admin.getVerificationStats);

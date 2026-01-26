@@ -1,19 +1,16 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
 import ZoomableImage from './ZoomableImage';
 
 interface ZoomableShopImageProps {
-  shopImageId: Id<"_storage">;
+  imageUrl: string; // Now receives Cloudinary URL directly
   style?: any;
 }
 
-export default function ZoomableShopImage({ shopImageId, style }: ZoomableShopImageProps) {
-  const shopImageUrl = useQuery(api.shops.getShopImage, { imageId: shopImageId });
-
-  if (!shopImageUrl) {
+export default function ZoomableShopImage({ imageUrl, style }: ZoomableShopImageProps) {
+  
+  // Show loading state if image URL is not available
+  if (!imageUrl) {
     return (
       <View style={[styles.loading, style]}>
         <ActivityIndicator size="large" color="#2563EB" />
@@ -21,7 +18,7 @@ export default function ZoomableShopImage({ shopImageId, style }: ZoomableShopIm
     );
   }
 
-  return <ZoomableImage uri={shopImageUrl} style={style} resizeMode="contain" />;
+  return <ZoomableImage uri={imageUrl} style={style} resizeMode="contain" />;
 }
 
 const styles = StyleSheet.create({

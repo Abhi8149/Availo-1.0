@@ -11,14 +11,14 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { Image } from "expo-image";  // ← ADD THIS
+import { Ionicons } from "@expo/vector-icons";  // ← ADD THIS
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import AddressInput from "../common/AddressInput";
+import AddressInput from "../common/AddressInput";  // ← ADD THIS
 import { FlexibleImagePicker } from "../common/FlexibleImagePicker";
-import { ImageOptimizer } from "../../utils/imageOptimizer";
+import { CloudinaryUpload } from '../../utils/cloudinaryUpload';
 
 interface AddShopModalProps {
   visible: boolean;
@@ -60,7 +60,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
   const [deliveryRange, setDeliveryRange] = useState("");
 
   const createShop = useMutation(api.shops.createShop);
-  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+ 
 
   // Helper function to convert AM/PM time to 24-hour format
   const formatTimeFor24Hour = (hours: string, minutes: string, period: string) => {
@@ -141,40 +141,6 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
       Alert.alert("Error", "Failed to edit image");
     }
   };
-
-
-  const uploadImage = async (uri: string): Promise<Id<"_storage"> | null> => {
-    try {
-      // Optimize image before uploading
-      console.log('Optimizing shop image...');
-      const optimizedUri = await ImageOptimizer.optimizeShopImage(uri);
-      
-      const uploadUrl = await generateUploadUrl();
-      
-      const response = await fetch(optimizedUri);
-      const blob = await response.blob();
-      
-      console.log(`Uploading optimized shop image (${(blob.size / 1024).toFixed(2)} KB)...`);
-      
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": blob.type },
-        body: blob,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const { storageId } = await uploadResponse.json();
-      console.log('Shop image uploaded successfully');
-      return storageId;
-    } catch (error) {
-      console.error("Image upload error:", error);
-      return null;
-    }
-  };
-
   const handleSubmit = async () => {
     const finalCategory = category === "other" ? customCategory.trim() : category;
     
@@ -202,24 +168,20 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
     }
 
     setLoading(true);
-    try {
-      let shopImageIds: Id<"_storage">[] = [];
+    try{
+    let shopImageUrls: string[] = [];
+    if (imageUris.length > 0) {
+      console.log(`Uploading ${imageUris.length} images to Cloudinary...`);
+      shopImageUrls = await CloudinaryUpload.uploadMultipleImages(
+        imageUris,
+        'shops',
+        'shop'
+      );
+      console.log(`Successfully uploaded ${shopImageUrls.length} images`);
+    }
 
-      // Upload all selected images with progress
-      if (imageUris.length > 0) {
-        console.log(`Starting upload of ${imageUris.length} shop images...`);
-        for (let i = 0; i < imageUris.length; i++) {
-          console.log(`Uploading image ${i + 1} of ${imageUris.length}...`);
-          const imageId = await uploadImage(imageUris[i]);
-          if (imageId) {
-            shopImageIds.push(imageId);
-          }
-        }
-        console.log(`Successfully uploaded ${shopImageIds.length} images`);
-      }
+    const shopImageId = shopImageUrls.length > 0 ? shopImageUrls[0] : undefined;
 
-      // For backward compatibility, set the first image as shopImageId
-      const shopImageId = shopImageIds.length > 0 ? shopImageIds[0] : undefined;
 
       // Don't set estimatedTime for new shops - it should only be used for actual status changes
       // The businessHours field will be used to display regular hours in the shop card
@@ -253,7 +215,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
         isOpen,
         mobileNumber: mobileNumber.trim(),
         shopImageId,
-        shopImageIds: shopImageIds.length > 0 ? shopImageIds : undefined,
+        shopImageIds: shopImageUrls.length > 0 ? shopImageUrls : undefined,
         estimatedTime,
         businessHours,
         hasDelivery,
@@ -282,6 +244,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
       onClose();
       Alert.alert("Success", "Shop added successfully!");
     } catch (error) {
+       console.error("Error creating shop:", error);
       Alert.alert("Error", "Failed to add shop. Please try again.");
     } finally {
       setLoading(false);

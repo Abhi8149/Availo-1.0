@@ -272,7 +272,7 @@ export default function ShopInventoryModal({
   };
 
   // Get all shop images
-  const allImages: Id<"_storage">[] = [];
+  const allImages: string[] = [];
   if (shop.shopImageId) {
     allImages.push(shop.shopImageId);
   }
@@ -359,7 +359,7 @@ export default function ShopInventoryModal({
         <View style={styles.itemHeader}>
           <View style={styles.itemImageContainer}>
             {item.imageId ? (
-              <ItemImage imageId={item.imageId} />
+              <ItemImage imageUrl={item.imageId} />
             ) : (
               <View style={styles.placeholderImage}>
                 <Ionicons name="cube-outline" size={20} color="#9CA3AF" />
@@ -459,7 +459,7 @@ export default function ShopInventoryModal({
         {selectedImageIndex !== null && allImages[selectedImageIndex] && (
           <View style={styles.fullscreenImageContainer}>
             <ZoomableShopImage 
-              shopImageId={allImages[selectedImageIndex]} 
+              imageUrl={allImages[selectedImageIndex]} 
               style={styles.fullscreenImage}
             />
           </View>
@@ -554,7 +554,7 @@ export default function ShopInventoryModal({
                     >
                       <View style={styles.shopImageWrapperFullSize}>
                         <ShopImage 
-                          shopImageId={imageId} 
+                          imageUrl={imageId} 
                           style={styles.fullSizeShopImage}
                           contentFit="contain"
                           showOriginalSize={true}

@@ -38,7 +38,6 @@ export default function ShopCartModal({
   shopName,
   onBookNow,
   onRemoveFromCart,
-  onUpdateQuantity,
   onIncreaseQuantity,
   onDecreaseQuantity,
   onViewOrders,
@@ -108,7 +107,7 @@ export default function ShopCartModal({
                   <View style={styles.imageContainer}>
                     {item.imageId ? (
                       <ItemImage
-                        imageId={item.imageId}
+                        imageUrl={item.imageId}
                         style={styles.itemImage}
                         contentFit="cover"
                       />

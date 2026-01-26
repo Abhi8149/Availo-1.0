@@ -1,29 +1,26 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { useQuery } from 'convex/react';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
 
 interface ItemImageProps {
-  imageId: Id<"_storage">;
+  imageUrl: string; // Now receives Cloudinary URL directly
   style?: ViewStyle;
   contentFit?: 'contain' | 'cover' | 'fill' | 'scale-down';
   showOriginalSize?: boolean;
 }
 
 export default function ItemImage({ 
-  imageId, 
+  imageUrl, 
   style, 
   contentFit = 'cover',
   showOriginalSize = false 
 }: ItemImageProps) {
-  const imageUrl = useQuery(api.items.getItemImage, { imageId });
-
+  
+  // If no image URL, show placeholder
   if (!imageUrl) {
     return (
-      <View style={styles.placeholderImage}>
+      <View style={[styles.itemImageContainer, style, styles.placeholderImage]}>
         <Ionicons name="image-outline" size={24} color="#9CA3AF" />
       </View>
     );
@@ -43,6 +40,8 @@ export default function ItemImage({
         contentFit={imageContentFit}
         transition={300}
         priority="high"
+        // Optional: Add Cloudinary transformations
+        // For smaller thumbnails: imageUrl + '?w_400,h_400,c_fill,q_auto,f_auto'
       />
     </View>
   );
@@ -66,8 +65,6 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   placeholderImage: {
-    width: '100%',
-    height: '100%',
     backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
