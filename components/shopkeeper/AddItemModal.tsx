@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -75,12 +75,25 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
   const [productDataLoading, setProductDataLoading] = useState(false);
   const [isManualEntry, setIsManualEntry] = useState(false);
   const [scannedProductSource, setScannedProductSource] = useState<string>('');
+  const [debouncedItemName, setDebouncedItemName] = useState("");
 
   const createItem = useMutation(api.items.createItem);
   const updateItem = useMutation(api.items.updateItem);
   const convex = useConvex();
 
-  const itemSuggestions = useQuery(api.items.searchItems, { searchTerm: itemName.length > 0 ? itemName : undefined }) || [];
+  // Debounce item name for suggestions (only query after user stops typing)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedItemName(itemName);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [itemName]);
+
+  // Only fetch suggestions when we have a debounced search term and suggestions are shown
+  const itemSuggestions = useQuery(
+    api.items.searchItems, 
+    showSuggestions && debouncedItemName.length > 0 ? { searchTerm: debouncedItemName } : "skip"
+  ) || [];
 
   useEffect(() => {
     if (editingItem) {
@@ -125,12 +138,12 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
     setScannedProductSource('');
   };
 
-  const handleBarcodeScanned = (scannedBarcode: string, productData?: ProductData) => {
+  const handleBarcodeScanned = useCallback((scannedBarcode: string, productData?: ProductData) => {
     setBarcode(scannedBarcode);
     setScannedProductSource(productData?.source || '');
     
     if (productData && productData.found) {
-      // Auto-fill form with found product data
+      // Auto-fill form with found product data - batch state updates to prevent flickering
       setItemName(productData.name);
       setBrand(productData.brand || '');
       if (productData.category && !category) {
@@ -181,38 +194,38 @@ export default function AddItemModal({ visible, onClose, shopId, editingItem }: 
     }
     
     setShowBarcodeScanner(false);
-  };
+  }, [category, description, price]);
 
-  const openBarcodeScanner = () => {
+  const openBarcodeScanner = useCallback(() => {
     setShowBarcodeScanner(true);
-  };
+  }, []);
 
-  const showImagePicker = async () => {
+  const showImagePicker = useCallback(async () => {
     try {
       const image = await FlexibleImagePicker.pickItemPhoto({
         quality: 0.8,
       });
 
       if (image) {
-        setImageUris([...imageUris, image.uri]);
+        setImageUris(prev => [...prev, image.uri]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert("Error", "Failed to select image");
     }
-  };
+  }, []);
 
-  const removeImage = (index: number) => {
-    setImageUris(imageUris.filter((_, i) => i !== index));
-  };
+  const removeImage = useCallback((index: number) => {
+    setImageUris(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
-  const removeExistingImage = (index: number) => {
-    setImageIds(imageIds.filter((_, i) => i !== index));
-  };
+  const removeExistingImage = useCallback((index: number) => {
+    setImageIds(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
-const uploadImage = async (uri: string): Promise<string | null> => {
+const uploadImage = useCallback(async (uri: string): Promise<string | null> => {
   return await CloudinaryUpload.uploadImage(uri, 'items', 'item');
-};
+}, []);
 
 const handleSubmit = async () => {
   if (!itemName.trim()) {
@@ -295,14 +308,16 @@ const handleSubmit = async () => {
   }
 };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!loading) {
       resetForm();
       onClose();
     }
-  };
+  }, [loading, onClose]);
 
-  const displayImage = imageUri || (editingItem?.imageId);
+  // Memoize computed values to prevent unnecessary re-renders
+  const totalImages = useMemo(() => imageUris.length + imageIds.length, [imageUris.length, imageIds.length]);
+  const displayImage = useMemo(() => imageUri || (editingItem?.imageId), [imageUri, editingItem?.imageId]);
 
   return (
     <Modal
@@ -332,7 +347,7 @@ const handleSubmit = async () => {
               <View style={styles.imageSectionHeader}>
                 <Text style={styles.label}>Item Photos</Text>
                 <Text style={styles.imageCount}>
-                  {imageUris.length + imageIds.length} photo{imageUris.length + imageIds.length !== 1 ? 's' : ''}
+                  {totalImages} photo{totalImages !== 1 ? 's' : ''}
                 </Text>
               </View>
               
@@ -404,7 +419,7 @@ const handleSubmit = async () => {
                 onBlur={() => {
                   setTimeout(() => {
                     if (!isSelectingSuggestion) setShowSuggestions(false);
-                  }, 100);
+                  }, 150);
                 }}
                 placeholderTextColor="#888"
               />
