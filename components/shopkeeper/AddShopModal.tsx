@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -63,7 +63,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
  
 
   // Helper function to convert AM/PM time to 24-hour format
-  const formatTimeFor24Hour = (hours: string, minutes: string, period: string) => {
+  const formatTimeFor24Hour = useCallback((hours: string, minutes: string, period: string) => {
     let hour = parseInt(hours, 10);
     const minute = parseInt(minutes, 10);
     
@@ -74,9 +74,9 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
     }
     
     return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-  };
+  }, []);
 
-  const showImagePicker = async () => {
+  const showImagePicker = useCallback(async () => {
     if (imageUris.length >= 10) {
       Alert.alert("Limit Reached", "You can add maximum 10 photos per shop");
       return;
@@ -96,9 +96,9 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
       console.error('Error picking images:', error);
       Alert.alert("Error", "Failed to select images");
     }
-  };
+  }, [imageUris.length]);
 
-  const addMorePhotos = async () => {
+  const addMorePhotos = useCallback(async () => {
     if (imageUris.length >= 10) {
       Alert.alert("Limit Reached", "You can add maximum 10 photos per shop");
       return;
@@ -118,13 +118,13 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
       console.error('Error picking images:', error);
       Alert.alert("Error", "Failed to select images");
     }
-  };
+  }, [imageUris.length]);
 
-  const removeImage = (indexToRemove: number) => {
+  const removeImage = useCallback((indexToRemove: number) => {
     setImageUris(prev => prev.filter((_, index) => index !== indexToRemove));
-  };
+  }, []);
 
-  const editImage = async (indexToEdit: number) => {
+  const editImage = useCallback(async (indexToEdit: number) => {
     try {
       const image = await FlexibleImagePicker.pickImage({
         quality: 0.8,
@@ -140,7 +140,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
       console.error('Error editing image:', error);
       Alert.alert("Error", "Failed to edit image");
     }
-  };
+  }, []);
   const handleSubmit = async () => {
     const finalCategory = category === "other" ? customCategory.trim() : category;
     
@@ -251,11 +251,63 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
     }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!loading) {
       onClose();
     }
-  };
+  }, [loading, onClose]);
+
+  // Memoize computed values to prevent unnecessary re-renders
+  const imageCount = useMemo(() => imageUris.length, [imageUris.length]);
+  const isImageLimitReached = useMemo(() => imageUris.length >= 10, [imageUris.length]);
+  const remainingImageSlots = useMemo(() => 10 - imageUris.length, [imageUris.length]);
+
+  // Optimize mobile number handler to prevent flickering
+  const handleMobileNumberChange = useCallback((text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    if (cleaned.length <= 10) {
+      setMobileNumber(cleaned);
+    }
+  }, []);
+
+  // Optimize time input handlers to prevent flickering
+  const handleOpeningHoursChange = useCallback((text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    const num = parseInt(cleaned);
+    if (cleaned === '' || (num >= 1 && num <= 12)) {
+      setOpeningHours(cleaned);
+    }
+  }, []);
+
+  const handleOpeningMinutesChange = useCallback((text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    const num = parseInt(cleaned);
+    if (cleaned === '' || (num >= 0 && num <= 59)) {
+      setOpeningMinutes(cleaned);
+    }
+  }, []);
+
+  const handleClosingHoursChange = useCallback((text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    const num = parseInt(cleaned);
+    if (cleaned === '' || (num >= 1 && num <= 12)) {
+      setClosingHours(cleaned);
+    }
+  }, []);
+
+  const handleClosingMinutesChange = useCallback((text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    const num = parseInt(cleaned);
+    if (cleaned === '' || (num >= 0 && num <= 59)) {
+      setClosingMinutes(cleaned);
+    }
+  }, []);
+
+  const handleDeliveryRangeChange = useCallback((text: string) => {
+    // Allow numbers and decimals
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    setDeliveryRange(cleaned);
+  }, []);
 
   return (
     <Modal
@@ -284,9 +336,9 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
                 <View style={styles.sectionTitleContainer}>
                   <Ionicons name="camera" size={20} color="#2563EB" />
                   <Text style={styles.sectionTitle}>Shop Photos</Text>
-                  {imageUris.length > 0 && (
+                  {imageCount > 0 && (
                     <View style={styles.imageCountBadge}>
-                      <Text style={styles.imageCountText}>{imageUris.length}/10</Text>
+                      <Text style={styles.imageCountText}>{imageCount}/10</Text>
                     </View>
                   )}
                 </View>
@@ -329,33 +381,33 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
               <TouchableOpacity 
                 style={[
                   styles.addImageButton,
-                  imageUris.length >= 10 && styles.addImageButtonDisabled,
-                  imageUris.length === 0 && styles.addImageButtonPrimary
+                  isImageLimitReached && styles.addImageButtonDisabled,
+                  imageCount === 0 && styles.addImageButtonPrimary
                 ]} 
-                onPress={imageUris.length === 0 ? showImagePicker : addMorePhotos}
-                disabled={imageUris.length >= 10}
+                onPress={imageCount === 0 ? showImagePicker : addMorePhotos}
+                disabled={isImageLimitReached}
               >
                 <View style={styles.addImageIconContainer}>
                   <Ionicons 
-                    name={imageUris.length === 0 ? "camera" : "add"} 
+                    name={imageCount === 0 ? "camera" : "add"} 
                     size={24} 
-                    color={imageUris.length >= 10 ? "#9CA3AF" : "#2563EB"} 
+                    color={isImageLimitReached ? "#9CA3AF" : "#2563EB"} 
                   />
                 </View>
                 <View style={styles.addImageTextContainer}>
                   <Text style={[
                     styles.addImageTitle,
-                    imageUris.length >= 10 && styles.addImageTitleDisabled
+                    isImageLimitReached && styles.addImageTitleDisabled
                   ]}>
-                    {imageUris.length === 0 ? "Add Your First Photo" : "Add More Photos"}
+                    {imageCount === 0 ? "Add Your First Photo" : "Add More Photos"}
                   </Text>
                   <Text style={[
                     styles.addImageSubtitle,
-                    imageUris.length >= 10 && styles.addImageSubtitleDisabled
+                    isImageLimitReached && styles.addImageSubtitleDisabled
                   ]}>
-                    {imageUris.length === 0 
+                    {imageCount === 0 
                       ? "Show customers what your shop looks like" 
-                      : `${10 - imageUris.length} more photos allowed`
+                      : `${remainingImageSlots} more photos allowed`
                     }
                   </Text>
                 </View>
@@ -455,13 +507,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
               <TextInput
                 style={styles.input}
                 value={mobileNumber}
-                onChangeText={(text) => {
-                  // Only allow digits and limit to 10 characters
-                  const cleaned = text.replace(/\D/g, '');
-                  if (cleaned.length <= 10) {
-                    setMobileNumber(cleaned);
-                  }
-                }}
+                onChangeText={handleMobileNumberChange}
                 placeholder="Enter 10-digit mobile number"
                 keyboardType="numeric"
                 maxLength={10}
@@ -584,13 +630,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
                     <TextInput
                       style={styles.timeInput}
                       value={openingHours}
-                      onChangeText={(text) => {
-                        const cleaned = text.replace(/\D/g, '');
-                        const num = parseInt(cleaned);
-                        if (cleaned === '' || (num >= 1 && num <= 12)) {
-                          setOpeningHours(cleaned);
-                        }
-                      }}
+                      onChangeText={handleOpeningHoursChange}
                       placeholder="1-12"
                       placeholderTextColor="#C4C4C4"
                       keyboardType="numeric"
@@ -603,13 +643,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
                     <TextInput
                       style={styles.timeInput}
                       value={openingMinutes}
-                      onChangeText={(text) => {
-                        const cleaned = text.replace(/\D/g, '');
-                        const num = parseInt(cleaned);
-                        if (cleaned === '' || (num >= 0 && num <= 59)) {
-                          setOpeningMinutes(cleaned);
-                        }
-                      }}
+                      onChangeText={handleOpeningMinutesChange}
                       placeholder="0-59"
                       placeholderTextColor="#C4C4C4"
                       keyboardType="numeric"
@@ -654,13 +688,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
                     <TextInput
                       style={styles.timeInput}
                       value={closingHours}
-                      onChangeText={(text) => {
-                        const cleaned = text.replace(/\D/g, '');
-                        const num = parseInt(cleaned);
-                        if (cleaned === '' || (num >= 1 && num <= 12)) {
-                          setClosingHours(cleaned);
-                        }
-                      }}
+                      onChangeText={handleClosingHoursChange}
                       placeholder="1-12"
                       placeholderTextColor="#C4C4C4"
                       keyboardType="numeric"
@@ -673,13 +701,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
                     <TextInput
                       style={styles.timeInput}
                       value={closingMinutes}
-                      onChangeText={(text) => {
-                        const cleaned = text.replace(/\D/g, '');
-                        const num = parseInt(cleaned);
-                        if (cleaned === '' || (num >= 0 && num <= 59)) {
-                          setClosingMinutes(cleaned);
-                        }
-                      }}
+                      onChangeText={handleClosingMinutesChange}
                       placeholder="0-59"
                       placeholderTextColor="#C4C4C4"
                       keyboardType="numeric"
@@ -774,7 +796,7 @@ export default function AddShopModal({ visible, onClose, ownerUid }: AddShopModa
                   <TextInput
                     style={styles.input}
                     value={deliveryRange}
-                    onChangeText={setDeliveryRange}
+                    onChangeText={handleDeliveryRangeChange}
                     placeholder="Enter delivery range in kilometers"
                     keyboardType="numeric"
                     placeholderTextColor="#9CA3AF"
